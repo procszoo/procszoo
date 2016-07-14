@@ -17,7 +17,8 @@ kernel. We support RHEL 6/CentOS 6.
 How to try it
 -------------
 
-Procszoo only requires Python stand libraries, Hence just clone it.
+Procszoo only requires Python standard libraries, Hence just clone it
+and do as follows you will get a interactve shell.
 
     git clone https://github.com/xning/procszoo.git
     cd procszoo/bin
@@ -33,4 +34,3 @@ And now, you check that we are in namespaces
 
     ps -ef
     ifconfig -a
-
