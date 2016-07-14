@@ -7,11 +7,13 @@ power to manage process by Linux namespaces.
 Goals
 -----
 
-Procszoo aims to provide a **simple** but **complete**
-workbench hence we can operate Linux namespaces by
-Python.
+Procszoo aims to provide you a **simple** but **complete**
+tool and you can use it as a **DSL** or an embeded
+programming language which let you operate Linux namespaces
+by Python.
 
-Procszoo gives a smart *init* program that is a Python program.
+Procszoo gives a smart *init* program. I get it from
+[baseimage-docker](https://github.com/phusion/baseimage-docker).
 
 Procszoo does not require new version Python and Linux
 kernel. We support RHEL 6/CentOS 6.
