@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+import os
+import sys
+from optparse import OptionParser
+
+cwd = os.path.abspath("%s/.." % os.path.dirname(os.path.abspath(__file__)))
+sys.path.append("%s/lib" % cwd)
+from namespaces import *
+
+if __name__ == "__main__":
+    propagation_types = ["slave", "shared", "private", "unchange"]
+    epilog="Pls try and enjoy it. And send bug and requests to xning@redhat.com."
+    parser = OptionParser(usage="Usage: %prog [options] cmd_run_in_namespaces",
+        description='A simple cli to create new namespaces env',
+        epilog=epilog)
+    parser.add_option("-n", "--namespace", action="append", dest="namespaces",
+                      help="namespace that should be create")
+    parser.add_option("-r", "--maproot", action="store_true", dest="maproot",
+                      help="map current effective user/group to root/root")
+    parser.add_option("--no-maproot", action="store_false",
+                      dest="maproot", default=True)
+    parser.add_option("--mountproc", action="store_true", dest="mountproc",
+                      help="remount procfs mountpoin", default=True)
+    parser.add_option("--no-mountproc", action="store_false", dest="mountproc",
+                      help="do not remount procfs")
+    parser.add_option("--mountpoint", action="store", type="string",
+                      dest="mountpoint", default="/proc",
+                      help="dir that the new namespaces would be mounted to")
+    parser.add_option("--ns_bind_dir", action="store", type="string",
+                      dest="ns_bind_dir",
+                      help="dir that the new namespaces would be mounted to")
+    parser.add_option(
+        "--propagation", action="store", type="string",
+        dest="propagation",
+        help="modify mount propagation in mount namespace: %s" %
+        "|".join(propagation_types))
+
+    (options, args) = parser.parse_args()
+    nscmd=None
+    if args:
+        nscmd=args[0]
+    spawn_namespaces(namespaces=options.namespaces, maproot=options.maproot,
+                     mountproc=options.mountproc, mountpoint=options.mountpoint,
+                     ns_bind_dir=options.ns_bind_dir,
+                     propagation=options.propagation,
+                     nscmd=nscmd)
