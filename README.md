@@ -48,7 +48,7 @@ then
     if __name__ == "__main__":
         spawn_namespaces()
 
-If you need run your self program instead of a **shell**, 
+If you need run your program instead of an interactive **shell**, 
 
     from namespaces import *
     
