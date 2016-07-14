@@ -57,3 +57,16 @@ If you need run your program instead of an interactive **shell**,
     if __name__ == "__main__":
         spawn_namespaces(nscmd=path_to_your_program)
         
+Docs
+----
+
+* [namespaces(7)](http://man7.org/linux/man-pages/man7/namespaces.7.html)
+
+* [Linux namespaces](https://en.wikipedia.org/wiki/Linux_namespaces)
+
+* [unshare(2)](http://man7.org/linux/man-pages/man2/unshare.2.html)
+
+* [Resource management:Linux kernel Namespaces and cgroups](http://www.haifux.org/lectures/299/netLec7.pdf)
+
+* [Containers and Namespaces in the Linux Kernel](https://events.linuxfoundation.org/slides/lfcs2010_kolyshkin.pdf)
+
