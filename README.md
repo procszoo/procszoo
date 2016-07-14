@@ -11,6 +11,8 @@ Procszoo aims to provide a **simple** but **complete**
 workbench hence we can operate Linux namespaces by
 Python.
 
+Procszoo gives a smart *init* program that is a Python program.
+
 Procszoo does not require new version Python and Linux
 kernel. We support RHEL 6/CentOS 6.
 
@@ -34,3 +36,22 @@ And now, you check that we are in namespaces
 
     ps -ef
     ifconfig -a
+
+How to use it in my projects?
+-----------------------------
+
+First, make sure that the **namespaces** module path in the **sys.path**,
+then
+
+    from namespaces import *
+    
+    if __name__ == "__main__":
+        spawn_namespaces()
+
+If you need run your self program instead of a **shell**, 
+
+    from namespaces import *
+    
+    if __name__ == "__main__":
+        spawn_namespaces(nscmd=path_to_your_program)
+        
