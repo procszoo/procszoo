@@ -92,12 +92,12 @@ network namespace.
 
         sudo ./richard_parker --ns_bind_dir=/tmp/ns
 
-* configure the *lo* for richard_parker
+* in *richard_parker*, configure the **lo** device
 
         ifconfig lo 127.0.0.1/24 up
 
-* in a new terminal, remount the /tmp/ns/net to /var/run/netns/net
-so ip command could operate it
+* in a new terminal, remount the */tmp/ns/net* to */var/run/netns/net*
+so **ip** command could operate it
 
         [ -d /var/run/netns ] | sudo mkdir -p  /var/run/netns
         sudo touch /var/run/netns/ns
@@ -109,11 +109,11 @@ namespace in a new terminal
         sudo ip link add veth0 type veth peer name veth1
         sudo ip link set dev veth1 netns ns
 
-* in the new terminal, configure *veth0*
+* in the new terminal, configure **veth0** device
 
         sudo ifconfig veth0 192.168.122.10/24 up
 
-* configure *veth1* for richard_parker
+* in *richard_parker*, configure **veth1**
 
         ifconfig veth1 192.168.122.11/24 up
 
@@ -121,7 +121,7 @@ namespace in a new terminal
 
         ping -c 3 192.168.0.11
 
-* let's say "hello" from richard_parker
+* let's say "hello" from *richard_parker*
 
         ping -c 3 192.168.0.10
 
@@ -133,6 +133,10 @@ Docs
 * [Linux namespaces](https://en.wikipedia.org/wiki/Linux_namespaces)
 
 * [unshare(2)](http://man7.org/linux/man-pages/man2/unshare.2.html)
+
+* [ip(8)](http://man7.org/linux/man-pages/man8/ip.8.html)
+
+* [mount(2)](http://man7.org/linux/man-pages/man2/mount.2.html)
 
 * [Resource management:Linux kernel Namespaces and cgroups](http://www.haifux.org/lectures/299/netLec7.pdf)
 
