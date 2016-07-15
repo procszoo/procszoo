@@ -78,11 +78,11 @@ Networks
 Let's add network to our new namespaces.
 
 Because we will mount namespaces entries by the *bind* flag, we need
-run richard_parker as the super user.
+run *richard_parker* as the super user.
 
-Except the shell that richard_parker will open, we need another
-interactive shell to make *veth* devices and add them to the right
-network namespace.
+Except the shell that *richard_parker* will open, we need another
+interactive shell to make *veth* devices and add them to the new
+"net" namespace.
 
 * create a mount point
 
@@ -111,11 +111,11 @@ namespace in a new terminal
 
 * in the new terminal, configure **veth0** device
 
-        sudo ifconfig veth0 192.168.122.10/24 up
+        sudo ifconfig veth0 192.168.0.10/24 up
 
 * in *richard_parker*, configure **veth1**
 
-        ifconfig veth1 192.168.122.11/24 up
+        ifconfig veth1 192.168.0.11/24 up
 
 * let's say "hello" from the new terminal
 
