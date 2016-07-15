@@ -130,13 +130,17 @@ Docs
 
 * [namespaces(7)](http://man7.org/linux/man-pages/man7/namespaces.7.html)
 
-* [Linux namespaces](https://en.wikipedia.org/wiki/Linux_namespaces)
-
 * [unshare(2)](http://man7.org/linux/man-pages/man2/unshare.2.html)
+
+* [setns(2)](http://man7.org/linux/man-pages/man2/setns.2.html)
 
 * [ip(8)](http://man7.org/linux/man-pages/man8/ip.8.html)
 
 * [mount(2)](http://man7.org/linux/man-pages/man2/mount.2.html)
+
+* [Linux namespaces](https://en.wikipedia.org/wiki/Linux_namespaces)
+
+* [Docker and the PID 1 zombie reaping problem](https://blog.phusion.nl/2015/01/20/docker-and-the-pid-1-zombie-reaping-problem/)
 
 * [Resource management:Linux kernel Namespaces and cgroups](http://www.haifux.org/lectures/299/netLec7.pdf)
 
