@@ -155,7 +155,8 @@ Known issues
 
 If running *richard_parker* failed on RHEL/CentOS/Fedora, and get following error
 message like this
->     os.execv(...)
-> OSError: [Errno 13] Permission denied
 
-That's not a bug, please see the [comment](https://bugzilla.redhat.com/show_bug.cgi?id=1349789#c7) 
+        os.execv(...)
+    OSError: [Errno 13] Permission denied
+
+That's not a bug, please see the [comment](https://bugzilla.redhat.com/show_bug.cgi?id=1349789#c7).
