@@ -210,7 +210,7 @@ The *procszoo* exported following functions
 
 ## Test Platforms
 ----------------
-The *richard_parker* runs well on following platforms
+The *richard_parker* runs well on following OSs (x32 and x86\_64)
 
 - CentOS 7
 - CentOS 6
