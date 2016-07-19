@@ -12,6 +12,7 @@ power to manage your processes by Linux namespaces.
 - [Docs](#docs)
 - [Known Issues](#known-issues)
 - [Functions](#functions)
+- [Test Platform](#test-platform)
 
 ## Goals
 --------
@@ -187,7 +188,7 @@ namespace in a new terminal
     the iproute package from [here](https://repos.fedorapeople.org/repos/openstack/EOL/openstack-icehouse/epel-6/)
 
 ## Functions
----------------------
+------------
 
 The *procszoo* exported following functions
 
@@ -203,3 +204,12 @@ The *procszoo* exported following functions
 - umountk
 - gethostname
 - sethostname
+
+## Test Platform
+----------------
+
+- CentOS 7
+- CentOS 6
+- Fedora 24
+- Ubuntu 16.04
+- Ubuntu 14.04
