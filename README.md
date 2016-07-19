@@ -38,8 +38,8 @@ and do as follows you will get an interactve shell.
     cd procszoo/bin
     ./richard_parker
 
-If your Linux kernel doesn't support "user" namespaces, you need
-run the *richard_parker* as *super user*
+If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6,
+you need run the *richard_parker* as *super user*
 
     cd procszoo/bin
     sudo ./richard_parker
