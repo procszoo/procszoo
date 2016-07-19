@@ -185,16 +185,10 @@ class Toolbox(object):
                 "path": None,
                 "namespace_type": 0,})
 
-        exported_name = "syscall_setns"
+        exported_name = "syscall"
         self.CFunctions[exported_name] = self.CFunction(
             exported_name=exported_name,
-            possible_c_func_names=["syscall"],
-            argtypes=[c_long, c_int, c_int])
-        func = self.CFunctions[exported_name]
-        if self._is_64bit():
-            func.NR = 308
-        else:
-            func.NR = 346
+            possible_c_func_names=["syscall"])
 
         exported_name = "mount"
         self.CFunctions[exported_name] = self.CFunction(
@@ -559,8 +553,11 @@ class Toolbox(object):
         if self.c_func_setns_available:
             return self.c_func_setns(fd, flags)
         else:
-            return self.c_func_syscall_setns(
-                c_long(self.CFunctions["syscall_setns"].NR), fd, flags)
+            if self._is_64bit():
+                NR = 308
+            else:
+                NR = 346
+            return self.c_func_syscall(c_long(NR), fd, flags)
 
     def adjust_namespaces(self, namespaces=None, negative_namespaces=None):
         self._check_namespaces_available_status()
