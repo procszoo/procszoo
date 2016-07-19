@@ -199,5 +199,7 @@ The *procszoo* exported following functions
 - spawn_namespaces
 - fork
 - mount
+- umount
+- umountk
 - gethostname
 - sethostname

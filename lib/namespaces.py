@@ -43,10 +43,9 @@ if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
 __version__ = '0.87'
-__all__ = ["unshare", "setns", "sched_getcpu", "atfork", "workbench",
-           "c_func_setns_available", "c_func_unshare_available",
-           "is_namespace_available", "spawn_namespaces", "fork",
-           "mount", "gethostname", "sethostname",]
+__all__ = ["unshare", "setns", "sched_getcpu", "fork", "atfork", "workbench",
+           "is_namespace_available", "spawn_namespaces", "mount",
+           "umount", "umount2", "gethostname", "sethostname",]
 
 class Toolbox(object):
     """
@@ -69,8 +68,6 @@ class Toolbox(object):
       spawn_namespace(namespaces=None, mountroot=True,
                       mountproc=True, mountpoint="/proc")
       sched_getcpu()
-      c_func_setns_available()
-      c_func_unshare_available()
       is_namespace_available(namespace)
     
     namespaces:
@@ -100,12 +97,15 @@ class Toolbox(object):
                      restype=c_int, default_args=None,
                      failed=lambda res: res != 0,
                      possible_c_func_names=None, func=None):
-            self.export_name = exported_name
+            self.exported_name = exported_name
             self.failed = failed
             self.default_args = default_args
             self.func = func
+            self.possible_c_func_names = possible_c_func_names
+            if self.possible_c_func_names is None:
+                self.possible_c_func_names = [exported_name]
 
-            for name in possible_c_func_names:
+            for name in self.possible_c_func_names:
                 if hasattr(Toolbox.CDLL, name):
                     func = getattr(Toolbox.CDLL, name)
                     func.argtypes = argtypes
@@ -167,20 +167,17 @@ class Toolbox(object):
         exported_name = "unshare"
         self.CFunctions[exported_name] = self.CFunction(
             exported_name=exported_name,
-            possible_c_func_names=["unshare"],
             argtypes=[c_int])
 
         exported_name = "sched_getcpu"
         self.CFunctions[exported_name] = self.CFunction(
             exported_name=exported_name,
-            possible_c_func_names=["sched_getcpu"],
             argtypes=None,
             failed=lambda res: res == -1)
 
         exported_name = "setns"
         self.CFunctions[exported_name] = self.CFunction(
             exported_name=exported_name,
-            possible_c_func_names=["setns"],
             argtypes=[c_int, c_int],
             default_args={
                 "file_instance": None,
@@ -202,7 +199,6 @@ class Toolbox(object):
         exported_name = "mount"
         self.CFunctions[exported_name] = self.CFunction(
             exported_name=exported_name,
-            possible_c_func_names=["mount"],
             argtypes=[c_char_p, c_char_p, c_char_p, c_long, c_void_p],
             default_args={
                 "source": None,
@@ -228,6 +224,29 @@ class Toolbox(object):
             "unchanged": [],
         }
 
+        exported_name = "umount"
+        self.CFunctions[exported_name] = self.CFunction(
+            exported_name=exported_name,
+            argtypes=[c_char_p])
+
+        exported_name = "umount2"
+        self.CFunctions[exported_name] = self.CFunction(
+            exported_name=exported_name,
+            argtypes=[c_char_p, c_int])
+        func = self.CFunctions[exported_name]
+        func.flags = {
+            "MNT_FORCE": 1,
+            "MNT_DETACH": 2,
+            "MNT_EXPIRE": 4,
+            "UMOUNT_NOFOLLOW": 8,
+        }
+        func.behaviors = {
+            "force": "MNT_FORCE",
+            "detach": "MNT_DETACH",
+            "expire": "MNT_EXPIRE",
+            "nofollow": "UMOUNT_NOFOLLOW",
+        }
+
         self.fork_handler_prototype = CFUNCTYPE(None)
         self.null_handler_pointer = self.fork_handler_prototype()
         self.register_fork_handler(self.null_handler_pointer)
@@ -235,7 +254,7 @@ class Toolbox(object):
         exported_name = "pthread_atfork"
         self.CFunctions[exported_name] = self.CFunction(
             exported_name=exported_name,
-            possible_c_func_names=["pthread_atfork", "__register_atfork"],
+            possible_c_func_names=[exported_name, "__register_atfork"],
             argtypes=[hdr_prototype, hdr_prototype, hdr_prototype],
             failed=lambda res: res == -1,
             default_args={
@@ -246,13 +265,11 @@ class Toolbox(object):
         exported_name = "gethostname"
         self.CFunctions[exported_name] = self.CFunction(
             exported_name=exported_name,
-            possible_c_func_names=["gethostname"],
             argtypes=[c_char_p, c_size_t])
 
         exported_name = "sethostname"
         self.CFunctions[exported_name] = self.CFunction(
             exported_name=exported_name,
-            possible_c_func_names=["sethostname"],
             argtypes=[c_char_p, c_size_t])
 
     def init_namespaces(self):
@@ -427,6 +444,31 @@ class Toolbox(object):
         self.mount(source="none", target=mountpoint, mount_type="private")
         self.mount(source="proc", target=mountpoint, filesystemtype="proc",
                    mount_type="mount_proc")
+
+    def umount(self, mountpoint=None):
+        if mountpoint is None:
+            return
+        if not isinstance(mountpoint, basestring):
+            raise RuntimeError("mountpoint should be a path to a mount point")
+        if not os.path.exists(mountpoint):
+            raise RuntimeError("mount point '%s': cannot found")
+        self.c_func_umount(mountpoint)
+
+    def umount2(self, mountpoint=None, behavior=None):
+        func_obj = self.CFunctions["umount2"]
+        if mountpoint is None:
+            return
+        if not isinstance(mountpoint, basestring):
+            raise RuntimeError("mountpoint should be a path to a mount point")
+        if not os.path.exists(mountpoint):
+            raise RuntimeError("mount point '%s': cannot found")
+
+        if behavior is None or behavior not in func_obj.behaviors.keys():
+            raise RuntimeError("behavior should be one of [%s]"
+                               % ", ".join(func_obj.behaviors.keys()))
+
+        flag = func_obj.flags[func_obj.behaviors[behavior]]
+        self.c_func_umount2(mountpoint, c_int(flag))
 
     def set_propagation(self, type=None):
         if type is None:
@@ -785,6 +827,18 @@ def mount(**kwargs):
     """
     return workbench.mount(**kwargs)
 
+def umount(mountpoint):
+    """
+    umount(mountpoint)
+    """
+    return workbench.umount(mountpoint)
+
+def umount2(mountpoint, behavior):
+    """
+    umount2(mountpoint, behavior)
+    """
+    return workbench.umount2(mountpoint, behavior)
+
 def spawn_namespaces(**kwargs):
     """
     spawn_namespace(namespaces=None, maproot=True, mountproc=True,
@@ -831,12 +885,6 @@ def sched_getcpu():
     which cpu the thread is running. See sched_getcpu(3)
     """
     return workbench.c_func_sched_getcpu()
-
-def c_func_setns_available():
-    return workbench.c_func_setns_available
-
-def c_func_unshare_available():
-    return workbench.c_func_unshare_available
 
 def is_namespace_available(namespace):
     return workbench.__getattr__("is_%s_namespace_available" % namespace)
