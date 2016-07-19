@@ -365,7 +365,7 @@ class Toolbox(object):
         if name.startswith("c_func_") and name.endswith("_available"):
             name = name.replace("c_func_", "")
             name = name.replace("_available", "")
-            print name
+
             if (self.CFunctions.has_key(name)
                 and self.CFunctions[name].func is not None):
                 return True
@@ -457,7 +457,6 @@ class Toolbox(object):
 
         E.g., setns(pid=1234, "pid")
         """
-        print kwargs
         keys = ["fd", "path", "pid", "file_obj"]
         wrong_keys = [k for k in keys if k in kwargs.keys()]
         if len(wrong_keys) != 1:
@@ -486,7 +485,6 @@ class Toolbox(object):
                 ns = kwargs["namespace"]
                 ns_obj = self.Namespaces[ns]
                 ns_obj_entry = ns_obj.entry
-                print [entry, ns_obj_entry]
                 if entry != ns_obj_entry:
                     raise TypeError("complicating path and namespace args found")
             if not os.path.exists(path):
