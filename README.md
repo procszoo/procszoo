@@ -4,22 +4,27 @@ Procszoo
 Procszoo is a small Python module that gives you full
 power to manage your processes by Linux namespaces.
 
-Goals
------
+## Contents
+- [Goals](#goals)
+- [Try It](#try-it)
+- [Known Issues](#known-issues)
 
-Procszoo aims to provide you a **simple** but **complete**
-tool and you can use it as a **DSL** or an embeded
-programming language which let you operate Linux namespaces
-by Python.
+## Goals
+--------
+
+Procszoo aims to provide you a simple but complete tool and
+you can use it as a **DSL** or an embeded programming language
+which let you operate Linux namespaces by Python.
 
 Procszoo gives a smart *init* program. I get it from
 [baseimage-docker](https://github.com/phusion/baseimage-docker).
+Thanks a lot, you guys.
 
 Procszoo does not require new version Python and Linux
 kernel. We support RHEL 6/CentOS 6.
 
-How to try it
--------------
+## Try It
+---------
 
 Procszoo only requires Python standard libraries, Hence just clone it
 and do as follows you will get an interactve shell.
@@ -51,10 +56,13 @@ from our namespaces
 
         id
 
-How to use it in my projects?
------------------------------
+* if you have trouble to try the above steps, please reference
+[Known Issues](#known-issues).
 
-First, make sure that the *namespaces* module path in the **sys.path**. You
+## Getting Your Feet Wet with the *namespaces* Module
+-----------------------------------------------------
+
+First, make sure that the *namespaces* module path in the *sys.path*. You
 can add the path as follows
 
     import sys
@@ -74,10 +82,10 @@ If you need run your own program instead of an interactive *shell*,
     if __name__ == "__main__":
         spawn_namespaces(nscmd=path_to_your_program)
 
-Networks
---------
+## Networks
+-----------
 
-Let's add network to our new namespaces.
+Let's add network to the new namespaces.
 
 Because we will mount namespaces entries by the *bind* flag, we need
 run *richard_parker* as the super user.
@@ -94,12 +102,12 @@ interactive shell to make *veth* devices and add them to the new
 
         sudo ./richard_parker --ns_bind_dir=/tmp/ns
 
-* in *richard_parker*, configure the **lo** device
+* in *richard_parker*, configure the *lo* device
 
         ifconfig lo 127.0.0.1/24 up
 
 * in a new terminal, remount the */tmp/ns/net* to */var/run/netns/net*
-so **ip** command could operate it
+so *ip* command could operate it
 
         [ -d /var/run/netns ] | sudo mkdir -p  /var/run/netns
         sudo touch /var/run/netns/ns
@@ -111,11 +119,11 @@ namespace in a new terminal
         sudo ip link add veth0 type veth peer name veth1
         sudo ip link set dev veth1 netns ns
 
-* in the new terminal, configure **veth0** device
+* in the new terminal, configure *veth0* device
 
         sudo ifconfig veth0 192.168.0.10/24 up
 
-* in *richard_parker*, configure **veth1**
+* in *richard_parker*, configure *veth1*
 
         ifconfig veth1 192.168.0.11/24 up
 
@@ -127,8 +135,8 @@ namespace in a new terminal
 
         ping -c 3 192.168.0.10
 
-Docs
-----
+## Docs
+-------
 
 * [namespaces(7)](http://man7.org/linux/man-pages/man7/namespaces.7.html)
 
@@ -148,15 +156,28 @@ Docs
 
 * [Containers and Namespaces in the Linux Kernel](https://events.linuxfoundation.org/slides/lfcs2010_kolyshkin.pdf)
 
-Known issues
-------------
+## Known Issues
+---------------
 
 * os.execv complains "permission deny"
 
-If running *richard_parker* failed on RHEL/CentOS/Fedora, and get following error
-message like this
+    If running *richard_parker* failed on RHEL/CentOS/Fedora, and get following error
+    message like this
 
-        os.execv(...)
-    OSError: [Errno 13] Permission denied
+    >         os.execv(...)
+    >     OSError: [Errno 13] Permission denied
 
-That's not a bug, please see the [comment](https://bugzilla.redhat.com/show_bug.cgi?id=1349789#c7).
+    That's not a bug, please see
+    the [comment](https://bugzilla.redhat.com/show_bug.cgi?id=1349789#c7).
+
+* "ip netns" failed on RHRL6/CentOS6 and gave error messages as follows
+
+    >     Object "nets" is unknown, try "ip help".
+
+    To resolve this issue, one way is to build and install iproute package by youself
+
+        wget -c https://repos.fedorapeople.org/repos/openstack/EOL/openstack-icehouse/epel-6/iproute-2.6.32-130.el6ost.netns.2.src.rpm
+        mock --rebuild iproute-2.6.32-130.el6ost.netns.2.src.rpm
+
+    if you has a x86_64 workstation, and you can directly download and install
+    the iproute package from [here](https://repos.fedorapeople.org/repos/openstack/EOL/openstack-icehouse/epel-6/)
