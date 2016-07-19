@@ -153,6 +153,8 @@ namespace in a new terminal
 
 * [mount(2)](http://man7.org/linux/man-pages/man2/mount.2.html)
 
+* [pivot_root(2)](http://man7.org/linux/man-pages/man2/pivot\_root.2.html)
+
 * [Linux namespaces](https://en.wikipedia.org/wiki/Linux_namespaces)
 
 * [Docker and the PID 1 zombie reaping problem](https://blog.phusion.nl/2015/01/20/docker-and-the-pid-1-zombie-reaping-problem/)
@@ -202,6 +204,7 @@ The *procszoo* exported following functions
 - mount
 - umount
 - umount2
+- pivot_root
 - gethostname
 - sethostname
 

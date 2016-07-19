@@ -20,18 +20,25 @@ and C functions that this module exports
     pthread_atfork(3)
     unhsare(2)
     setns(2)
+    pivot_root(2)
     sched_getcpu(3)
 
 Functions:
      atfork(prepare=hdr1, parent=hdr2, child=hdr2)
+     unshare(namespaces=None)
      setns(path=path_to_namespace, namespace=namespace)
-     mount_proc(mountpoint='/proc')
+     mount(source=None, target=None, mount_type=None,
+           filesystemtype=None, data=None)
+     umount(mountpoint)
+     umount2(mountpoint, behavior)
      spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
                       mountpoint="/proc", ns_bind_dir=None, nscmd=None,
                       propagation=None, negative_namespaces=None)
+     pivot_root(old_root, new_root)
      sched_getcpu()
-     c_func_setns_available()
-     c_func_unshare_available()
+     fork()
+     gethostname()
+     sethostname(hostname=None)
      is_namespace_available(namespace)
          namespaces could be one of:
           "ipc", "net", "mount", "pid", "user", "uts"
@@ -42,39 +49,17 @@ Misc variables:
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
-__version__ = '0.87'
-__all__ = ["unshare", "setns", "sched_getcpu", "fork", "atfork", "workbench",
-           "is_namespace_available", "spawn_namespaces", "mount",
-           "umount", "umount2", "gethostname", "sethostname",]
+__version__ = '0.90'
+__all__ = [
+    "unshare", "setns", "sched_getcpu", "fork", "atfork", "mount", "umount",
+    "umount2", "gethostname", "sethostname", "pivot_root", "spawn_namespaces",
+    "is_namespace_available", "workbench"]
 
 class Toolbox(object):
     """
     The class is instanced as a singleton. While we will export the
     instance, but unless know exactly what you are doing, don't use
     this instance directly.
-    
-    The following manpages will be help
-
-      namespaces(7)
-      pthread_atfork(3)
-      unhsare(2)
-      setns(2)
-      sched_getcpu(3)
-
-    functions:
-      atfork(prepare=hdr1, parent=hdr2, child=hdr2)
-      setns(path=path_to_namespace, namespace=namespace)
-      mount_proc(mountpoint='/proc')
-      spawn_namespace(namespaces=None, mountroot=True,
-                      mountproc=True, mountpoint="/proc")
-      sched_getcpu()
-      is_namespace_available(namespace)
-    
-    namespaces:
-          "ipc", "net", "mount", "pid", "user", "uts", "cgroup"
-
-    Misc variables:
-      __version__
     """
 
     HOST_NAME_MAX = 256
@@ -325,9 +310,9 @@ class Toolbox(object):
             child = hdr_prototype(child)
 
         for hdr in prepare, parent, child:
-            self.register_fork_handler(hdr)
+            self.register_self.fork_handler(hdr)
 
-        return self.c_func_pthread_atfork(prepare, parent, child)
+        return self.c_func_pthread_atself.fork(prepare, parent, child)
 
     def _check_namespaces_available_status(self):
         """
@@ -337,9 +322,9 @@ class Toolbox(object):
         EINVAL = 22
         r, w = os.pipe()
 
-        pid0 = fork()
+        pid0 = self.fork()
         if pid0 == 0:
-            pid1 = fork()
+            pid1 = self.fork()
             if pid1 == 0:
                 os.close(r)
                 tmpfile = os.fdopen(w, 'wb')
@@ -554,10 +539,47 @@ class Toolbox(object):
             return self.c_func_setns(fd, flags)
         else:
             if self._is_64bit():
-                NR = 308
+                NR_SETNS = 308
             else:
-                NR = 346
-            return self.c_func_syscall(c_long(NR), fd, flags)
+                NR_SETNS = 346
+            return self.c_func_syscall(c_long(NR_SETNS), fd, flags)
+
+    @classmethod
+    def fork(cls):
+        pid = os.fork()
+        _errno_c_int = c_int.in_dll(pythonapi, "errno")
+        if pid == - 1:
+            raise RuntimeError(os.strerror(_errno_c_int.value))
+        return pid
+
+    def gethostname(self):
+        buf_len = 256
+        buf = create_string_buffer(buf_len)
+        self.c_func_gethostname(buf, c_size_t(buf_len))
+        return string_at(buf)
+
+    def sethostname(self, hostname=None):
+        if hostname is None:
+            return
+        buf_len = c_size_t(len(hostname))
+        buf = create_string_buffer(hostname)
+        return self.c_func_sethostname(buf, buf_len)
+
+    def pivot_root(self, old_root, new_root):
+        if not isinstance(old_root, basestring):
+            raise RuntimeError("old_root argument is not an available path")
+        if not isinstance(new_root, basestring):
+            raise RuntimeError("new_root argument is not an available path")
+        if not os.path.exists(old_root):
+            raise RuntimeError("%s: no such directory" % old_root)
+        if not os.path.exists(new_root):
+            raise RuntimeError("%s: no such directory" % new_root)
+
+        if self._is_64bit():
+            NR_PIVOT_ROOT = 155
+        else:
+            NR_PIVOT_ROOT = 217
+        return self.c_func_syscall(c_long(NR_PIVOT_ROOT), old_root, new_root)
 
     def adjust_namespaces(self, namespaces=None, negative_namespaces=None):
         self._check_namespaces_available_status()
@@ -670,7 +692,7 @@ class Toolbox(object):
 
         r3, w3 = os.pipe()
         r4, w4 = os.pipe()
-        pid = fork()
+        pid = self.fork()
 
         if pid == 0:
             os.close(w1)
@@ -766,7 +788,7 @@ class Toolbox(object):
 
         r1, w1 = os.pipe()
         r2, w2 = os.pipe()
-        pid = fork()
+        pid = self.fork()
 
         if pid == 0:
             self._run_cmd_in_new_namespaces(
@@ -836,6 +858,12 @@ def umount2(mountpoint, behavior):
     """
     return workbench.umount2(mountpoint, behavior)
 
+def pivot_root(old_root, new_root):
+    """
+    pivot_root(old_root, new_root)
+    """
+    return workbench.pivot_root(old_root, new_root)
+
 def spawn_namespaces(**kwargs):
     """
     spawn_namespace(namespaces=None, maproot=True, mountproc=True,
@@ -887,24 +915,13 @@ def is_namespace_available(namespace):
     return workbench.__getattr__("is_%s_namespace_available" % namespace)
 
 def fork():
-    pid = os.fork()
-    _errno_c_int = c_int.in_dll(pythonapi, "errno")
-    if pid == - 1:
-        raise RuntimeError(os.strerror(_errno_c_int.value))
-    return pid
+    return workbench.fork()
 
 def gethostname():
-    buf_len = 256
-    buf = create_string_buffer(buf_len)
-    workbench.c_func_gethostname(buf, c_size_t(buf_len))
-    return string_at(buf)
+    return workbench.gethostname()
 
 def sethostname(hostname=None):
-    if hostname is None:
-        return
-    buf_len = c_size_t(len(hostname))
-    buf = create_string_buffer(hostname)
-    workbench.c_func_sethostname(buf, buf_len)
+    return workbench.sethostname(hostname)
 
 workbench = Toolbox()
 del Toolbox
