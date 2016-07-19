@@ -7,6 +7,9 @@ power to manage your processes by Linux namespaces.
 ## Contents
 - [Goals](#goals)
 - [Try It](#try-it)
+- [Getting Your Feet Wet with the *namespaces* Module](#getting-your-feet-wet-with-the-namespaces-module)
+- [Networks](#networks)
+- [Docs](#docs)
 - [Known Issues](#known-issues)
 
 ## Goals
