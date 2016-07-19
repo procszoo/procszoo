@@ -12,7 +12,7 @@ power to manage your processes by Linux namespaces.
 - [Docs](#docs)
 - [Known Issues](#known-issues)
 - [Functions](#functions)
-- [Test Platform](#test-platform)
+- [Test Platforms](#test-platforms)
 
 ## Goals
 --------
@@ -205,8 +205,9 @@ The *procszoo* exported following functions
 - gethostname
 - sethostname
 
-## Test Platform
+## Test Platforms
 ----------------
+The *richard_parker* runs well on following platforms
 
 - CentOS 7
 - CentOS 6
