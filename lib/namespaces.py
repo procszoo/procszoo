@@ -622,10 +622,16 @@ class Toolbox(object):
         if str not in ctrl_keys:
             raise RuntimeError("group control should be %s"
                                % ", ".join(ctrl_keys))
-        self.write2file("/proc/self/setgroups", str)
+        path = "/proc/self/setgroups"
+        if os.path.exists(path):
+            self.write2file(path, str)
 
     def map_id(self, map_file, map):
-        self.write2file("/proc/self/%s" % map_file, map)
+        path = "/proc/self/%s" % map_file
+        if os.path.exists(path):
+            self.write2file(path, map)
+        else:
+            raise RuntimeError("%s: No such file" % path)
 
     def bind_ns_files(self, pid, namespaces=None, ns_bind_dir=None):
         if ns_bind_dir is None or namespaces is None:
