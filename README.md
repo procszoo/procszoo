@@ -181,13 +181,7 @@ namespace in a new terminal
 
     >     Object "nets" is unknown, try "ip help".
 
-    To resolve this issue, one way is to build and install iproute package by youself
-
-        wget -c https://repos.fedorapeople.org/repos/openstack/EOL/openstack-icehouse/epel-6/iproute-2.6.32-130.el6ost.netns.2.src.rpm
-        mock --rebuild iproute-2.6.32-130.el6ost.netns.2.src.rpm
-
-    if you has a x86_64 workstation, and you can directly download and install
-    the iproute package from [here](https://repos.fedorapeople.org/repos/openstack/EOL/openstack-icehouse/epel-6/)
+    To resolve this issue, pls reference [here](https://github.com/xning/procszoo/wiki/How-to-build-iproute-and-python-pyroute2-that-supports-net-namespace%3F)
 
 ## Exported Functions
 ---------------------
