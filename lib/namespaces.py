@@ -52,8 +52,8 @@ if os.uname()[0] != "Linux":
 __version__ = '0.90'
 __all__ = [
     "unshare", "setns", "sched_getcpu", "fork", "atfork", "mount", "umount",
-    "umount2", "gethostname", "sethostname", "pivot_root", "spawn_namespaces",
-    "is_namespace_available", "workbench"]
+    "umount2", "gethostname", "sethostname", "getdomainname", "setdomainname",
+    "pivot_root", "spawn_namespaces", "is_namespace_available", "workbench"]
 
 class Toolbox(object):
     """
@@ -247,6 +247,16 @@ class Toolbox(object):
             argtypes=[c_char_p, c_size_t])
 
         exported_name = "sethostname"
+        self.CFunctions[exported_name] = self.CFunction(
+            exported_name=exported_name,
+            argtypes=[c_char_p, c_size_t])
+
+        exported_name = "getdomainname"
+        self.CFunctions[exported_name] = self.CFunction(
+            exported_name=exported_name,
+            argtypes=[c_char_p, c_size_t])
+
+        exported_name = "setdomainname"
         self.CFunctions[exported_name] = self.CFunction(
             exported_name=exported_name,
             argtypes=[c_char_p, c_size_t])
@@ -564,6 +574,19 @@ class Toolbox(object):
         buf_len = c_size_t(len(hostname))
         buf = create_string_buffer(hostname)
         return self.c_func_sethostname(buf, buf_len)
+
+    def getdomainname(self):
+        buf_len = 256
+        buf = create_string_buffer(buf_len)
+        self.c_func_getdomainname(buf, c_size_t(buf_len))
+        return string_at(buf)
+
+    def setdomainname(self, domainname=None):
+        if domainname is None:
+            return
+        buf_len = c_size_t(len(domainname))
+        buf = create_string_buffer(domainname)
+        return self.c_func_setdomainname(buf, buf_len)
 
     def pivot_root(self, old_root, new_root):
         if not isinstance(old_root, basestring):
@@ -928,6 +951,12 @@ def gethostname():
 
 def sethostname(hostname=None):
     return workbench.sethostname(hostname)
+
+def getdomainname():
+    return workbench.getdomainname()
+
+def setdomainname(domainname=None):
+    return workbench.setdomainname(domainname)
 
 workbench = Toolbox()
 del Toolbox

@@ -194,7 +194,7 @@ The *procszoo* exported following functions
 - sched\_getcpu
 - atfork
 - is\_namespace\_available
-- spawn_namespaces
+- spawn\_namespaces
 - fork
 - mount
 - umount
@@ -202,6 +202,8 @@ The *procszoo* exported following functions
 - pivot_root
 - gethostname
 - sethostname
+- getdomainname
+- setdomainname
 
 ## Test Platforms
 ----------------
