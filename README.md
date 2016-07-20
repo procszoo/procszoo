@@ -181,7 +181,8 @@ namespace in a new terminal
 
     >     Object "nets" is unknown, try "ip help".
 
-    To resolve this issue, pls reference [here](https://github.com/xning/procszoo/wiki/How-to-build-iproute-and-python-pyroute2-that-supports-net-namespace%3F)
+    We need a more latest iproute package, to do that pls reference
+    [here](https://github.com/xning/procszoo/wiki/How-to-build-iproute-and-python-pyroute2-that-supports-net-namespace%3F)
 
 ## Exported Functions
 ---------------------
