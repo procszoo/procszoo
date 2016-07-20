@@ -34,7 +34,7 @@ Functions:
      spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
                       mountpoint="/proc", ns_bind_dir=None, nscmd=None,
                       propagation=None, negative_namespaces=None)
-     pivot_root(old_root, new_root)
+     pivot_root(new_root, put_old)
      sched_getcpu()
      fork()
      gethostname()
@@ -142,7 +142,6 @@ class Toolbox(object):
                         return
                 hdr.close()
             self.available = False
-
 
     @classmethod
     def _is_64bit(cls):
@@ -285,7 +284,7 @@ class Toolbox(object):
         self.Namespaces["user"].group_control_keys = ["allow", "deny"]
 
         self.Namespaces["uts"] = self.Namespace(
-            name="uts", macro='CLONE_NEWUTS', value=0x04000000, entry='uts')            
+            name="uts", macro='CLONE_NEWUTS', value=0x04000000, entry='uts')
 
     def register_fork_handler(self, hdr):
         if hdr not in self.ForkHandlers:
@@ -405,6 +404,15 @@ class Toolbox(object):
                 return c_func_wrapper
             else:
                 raise Runtime("C function '%s' not found" % name)
+
+    def atfork(self, **kwargs):
+        return self.pthread_atfork(**kwargs)
+
+    def sched_getcpu(self):
+        return self.c_func_sched_getcpu()
+
+    def is_namespace_available(self, namespace):
+        return self.__getattr__("is_%s_namespace_available" % namespace)
 
     def mount(self, source=None, target=None, mount_type=None,
               filesystemtype=None, data=None):
@@ -588,21 +596,21 @@ class Toolbox(object):
         buf = create_string_buffer(domainname)
         return self.c_func_setdomainname(buf, buf_len)
 
-    def pivot_root(self, old_root, new_root):
-        if not isinstance(old_root, basestring):
-            raise RuntimeError("old_root argument is not an available path")
+    def pivot_root(self, new_root, put_old):
         if not isinstance(new_root, basestring):
             raise RuntimeError("new_root argument is not an available path")
-        if not os.path.exists(old_root):
-            raise RuntimeError("%s: no such directory" % old_root)
+        if not isinstance(put_old, basestring):
+            raise RuntimeError("put_old argument is not an available path")
         if not os.path.exists(new_root):
             raise RuntimeError("%s: no such directory" % new_root)
+        if not os.path.exists(put_old):
+            raise RuntimeError("%s: no such directory" % put_old)
 
         if self._is_64bit():
             NR_PIVOT_ROOT = 155
         else:
             NR_PIVOT_ROOT = 217
-        return self.c_func_syscall(c_long(NR_PIVOT_ROOT), old_root, new_root)
+        return self.c_func_syscall(c_long(NR_PIVOT_ROOT), new_root, put_old)
 
     def adjust_namespaces(self, namespaces=None, negative_namespaces=None):
         self._check_namespaces_available_status()
@@ -887,11 +895,11 @@ def umount2(mountpoint, behavior):
     """
     return workbench.umount2(mountpoint, behavior)
 
-def pivot_root(old_root, new_root):
+def pivot_root(new_root, put_old):
     """
-    pivot_root(old_root, new_root)
+    pivot_root(new_root, put_old)
     """
-    return workbench.pivot_root(old_root, new_root)
+    return workbench.pivot_root(new_root, put_old)
 
 def spawn_namespaces(**kwargs):
     """
@@ -931,17 +939,17 @@ def atfork(**kwargs):
             ...
         ...
     """
-    return workbench.pthread_atfork(**kwargs)
+    return workbench.atfork(**kwargs)
 
 def sched_getcpu():
     """
     sched_getcpu()
     which cpu the thread is running. See sched_getcpu(3)
     """
-    return workbench.c_func_sched_getcpu()
+    return workbench.sched_getcpu()
 
 def is_namespace_available(namespace):
-    return workbench.__getattr__("is_%s_namespace_available" % namespace)
+    return workbench.is_namespace_available(namespace)
 
 def fork():
     return workbench.fork()
