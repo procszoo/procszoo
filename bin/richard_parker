@@ -14,8 +14,10 @@ if __name__ == "__main__":
     parser = OptionParser(usage="Usage: %prog [options] cmd_run_in_namespaces",
         description='A simple cli to create new namespaces env',
         epilog=epilog)
-    parser.add_option("-n", "--namespace", action="append", dest="namespaces",
+    parser.add_option("--namespace", action="append", dest="namespaces",
                       help="namespace that should be create")
+    parser.add_option("--negative-namespace", action="append", dest="negative_namespaces",
+                      help="namespace that should not be create")
     parser.add_option("-r", "--maproot", action="store_true", dest="maproot",
                       help="map current effective user/group to root/root")
     parser.add_option("--no-maproot", action="store_false",
@@ -40,8 +42,12 @@ if __name__ == "__main__":
     nscmd=None
     if args:
         nscmd=args[0]
-    spawn_namespaces(namespaces=options.namespaces, maproot=options.maproot,
-                     mountproc=options.mountproc, mountpoint=options.mountpoint,
-                     ns_bind_dir=options.ns_bind_dir,
-                     propagation=options.propagation,
-                     nscmd=nscmd)
+    spawn_namespaces(
+        namespaces=options.namespaces,
+        negative_namespaces=options.negative_namespaces,
+        maproot=options.maproot,
+        mountproc=options.mountproc,
+        mountpoint=options.mountpoint,
+        ns_bind_dir=options.ns_bind_dir,
+        propagation=options.propagation,
+        nscmd=nscmd)
