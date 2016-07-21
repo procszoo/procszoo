@@ -806,22 +806,24 @@ class Toolbox(object):
         """
         namespaces = self.adjust_namespaces(namespaces, negative_namespaces)
 
-        if "pid" in namespaces and not is_namespace_available("pid"):
-            raise RuntimeError("unsupported OS found")
+        all_namespaces = self.Namespaces
+        unsupported_namespaces = []
+        for ns in namespaces:
+            if not (all_namespaces.has_key(ns) and all_namespaces[ns].available):
+                unsupported_namespaces.append(ns)
+        if unsupported_namespaces:
+            raise UnavailableNamespaceFound(unsupported_namespaces)
+
+
+        if "user" not in namespaces:
+            maproot = False
+
         if "pid" not in namespaces:
             mountproc = False
 
-        if mountproc:
-            mountproc = self.is_mount_namespace_available
-
-        if "pid" in namespaces and mountproc is False:
-            raise RuntimeError("new pid namespaces requires remount procfs")
-
-        if maproot and self.is_user_namespace_available:
-            if "user" not in namespaces:
-                raise UnavailableNamespaceFound(["user"])
-        else:
-            maproot = False
+        if "mount" not in namespaces:
+             ns_bind_dir = None
+             propagation = None
 
         r1, w1 = os.pipe()
         r2, w2 = os.pipe()
