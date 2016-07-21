@@ -109,7 +109,7 @@ interactive shell to make *veth* devices and add them to the new
 
 * in *richard_parker*, configure the *lo* device
 
-        ifconfig lo 127.0.0.1/24 up
+        ip link set lo up
 
 * in a new terminal, remount the */tmp/ns/net* to */var/run/netns/net*
 so *ip* command could operate it
@@ -126,11 +126,13 @@ namespace in a new terminal
 
 * in the new terminal, configure *veth0* device
 
-        sudo ifconfig veth0 192.168.0.10/24 up
+        sudo ip link set veth0 up
+        sudo ip addr add 192.168.0.10/24 broadcast 192.168.0.255 dev veth0
 
 * in *richard_parker*, configure *veth1*
 
-        ifconfig veth1 192.168.0.11/24 up
+        ip link set veth1 up
+        ip addr add 192.168.0.11/24 broadcast 192.168.0.255 dev veth1
 
 * let's say "hello" from the new terminal
 
