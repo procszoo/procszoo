@@ -10,28 +10,40 @@ from namespaces import *
 
 if __name__ == "__main__":
     propagation_types = ["slave", "shared", "private", "unchange"]
-    epilog="Pls try and enjoy it. And send bug and requests to xning@redhat.com."
-    parser = OptionParser(usage="Usage: %prog [options] cmd_run_in_namespaces",
-        description='A simple cli to create new namespaces env',
+    progname = os.path.basename(sys.argv[0]) or 'richard_parker'
+    project_url = "http://github.com/xning/procszoo"
+    description="""A simple cli to create new namespaces env,
+    default it enable each namespaces"""
+    epilog="%s is part of procszoo: %s"  % (progname, project_url)
+    parser = OptionParser(
+        usage="Usage: %prog [options] cmd_run_in_namespaces",
+        description='A simple cli to create new namespaces env, default enable each namespaces',
         epilog=epilog)
-    parser.add_option("--namespace", action="append", dest="namespaces",
-                      help="namespace that should be create")
-    parser.add_option("--negative-namespace", action="append", dest="negative_namespaces",
-                      help="namespace that should not be create")
+    parser.add_option("-n", "--namespace", action="append", dest="namespaces",
+                        help="namespace that should be create")
+    parser.add_option("-N", "--negative-namespace", action="append",
+                          dest="negative_namespaces",
+                          help="namespace that should not be create")
     parser.add_option("-r", "--maproot", action="store_true", dest="maproot",
-                      help="map current effective user/group to root/root")
+                          default=True,
+                          help="map current effective user/group to root/root")
     parser.add_option("--no-maproot", action="store_false",
-                      dest="maproot", default=True)
+                        dest="maproot")
+    parser.add_option(
+        "-s", "--setgroups", action="store", type="string",
+        dest="setgroups",
+        help="""control the setgroups syscall in user namespaces,
+        when setting to 'allow' will enable --no-maproot option""")
     parser.add_option("--mountproc", action="store_true", dest="mountproc",
-                      help="remount procfs mountpoin", default=True)
+                        help="remount procfs mountpoin", default=True)
     parser.add_option("--no-mountproc", action="store_false", dest="mountproc",
-                      help="do not remount procfs")
+                        help="do not remount procfs")
     parser.add_option("--mountpoint", action="store", type="string",
-                      dest="mountpoint", default="/proc",
-                      help="dir that the new namespaces would be mounted to")
-    parser.add_option("--ns_bind_dir", action="store", type="string",
-                      dest="ns_bind_dir",
-                      help="dir that the new namespaces would be mounted to")
+                        dest="mountpoint",
+                        help="dir that the new procfs would be mounted to")
+    parser.add_option("-b", "--ns_bind_dir", action="store", type="string",
+                        dest="ns_bind_dir",
+                        help="dir that the new namespaces would be mounted to")
     parser.add_option(
         "--propagation", action="store", type="string",
         dest="propagation",
@@ -42,6 +54,12 @@ if __name__ == "__main__":
     nscmd=None
     if args:
         nscmd=args[0]
+
+    if options.setgroups == "allow" and options.maproot:
+        options.maproot = False
+    if options.mountproc and options.mountpoint is None:
+        options.mountpoint = '/proc'
+
     spawn_namespaces(
         namespaces=options.namespaces,
         negative_namespaces=options.negative_namespaces,
@@ -50,4 +68,4 @@ if __name__ == "__main__":
         mountpoint=options.mountpoint,
         ns_bind_dir=options.ns_bind_dir,
         propagation=options.propagation,
-        nscmd=nscmd)
+        nscmd=nscmd, setgroups=options.setgroups)

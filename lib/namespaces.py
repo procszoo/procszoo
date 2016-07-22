@@ -53,7 +53,9 @@ __version__ = '0.90'
 __all__ = [
     "unshare", "setns", "sched_getcpu", "fork", "atfork", "mount", "umount",
     "umount2", "gethostname", "sethostname", "getdomainname", "setdomainname",
-    "pivot_root", "spawn_namespaces", "is_namespace_available", "workbench"]
+    "pivot_root", "spawn_namespaces", "is_namespace_available", "workbench",
+    "NamespaceGenericException", "UnknownNamespaceFound",
+    "UnavailableNamespaceFound", "NamespaceSettingError"]
 
 class Toolbox(object):
     """
@@ -648,14 +650,29 @@ class Toolbox(object):
         hdr.write(str)
         hdr.close()
 
-    def setgroups_control(self, str="deny"):
+    def setgroups_control(self, setgroups):
+        if setgroups is None:
+            return
+        path = "/proc/self/setgroups"
+        if not os.path.exists(path):
+            if setgroups == "deny":
+                raise NamespaceSettingError("cannot set setgroups to 'deny'")
+            else:
+                return
+
         ctrl_keys = self.Namespaces["user"].group_control_keys
-        if str not in ctrl_keys:
+        if setgroups not in ctrl_keys:
             raise RuntimeError("group control should be %s"
                                % ", ".join(ctrl_keys))
-        path = "/proc/self/setgroups"
+        hdr = open(path, 'r')
+        line=hdr.read(16)
+        old_setgroups = line.rstrip("\n")
+        if old_setgroups == setgroups:
+            return
+        hdr.close()
+
         if os.path.exists(path):
-            self.write2file(path, str)
+            self.write2file(path, setgroups)
 
     def map_id(self, map_file, map):
         path = "/proc/self/%s" % map_file
@@ -717,7 +734,10 @@ class Toolbox(object):
         return "sh"
 
     def _run_cmd_in_new_namespaces(self, r1, w1, r2, w2, namespaces, maproot,
-                                   mountproc, mountpoint, nscmd, propagation):
+                                       mountproc, mountpoint, nscmd, propagation,
+                                       setgroups):
+        if setgroups == "allow" and maproot:
+            raise NamespaceSettingError()
         if maproot:
             uid = os.geteuid()
             gid = os.getegid()
@@ -738,8 +758,9 @@ class Toolbox(object):
             os.close(r3)
             os.close(w4)
 
+            self.setgroups_control(setgroups)
+
             if maproot:
-                self.setgroups_control()
                 self.map_id("uid_map", "0 %d 1" % uid)
                 self.map_id("gid_map", "0 %d 1" % gid)
             if "mount" in namespaces and propagation is not None:
@@ -799,8 +820,9 @@ class Toolbox(object):
        os.close(w2)
 
     def spawn_namespaces(self, namespaces=None, maproot=True, mountproc=True,
-                         mountpoint="/proc", ns_bind_dir=None, nscmd=None,
-                         propagation=None, negative_namespaces=None):
+                             mountpoint="/proc", ns_bind_dir=None, nscmd=None,
+                             propagation=None, negative_namespaces=None,
+                             setgroups=None, options=None):
         """
         workbench.spawn_namespace(namespaces=["pid", "net", "mount"])
         """
@@ -809,11 +831,24 @@ class Toolbox(object):
         all_namespaces = self.Namespaces
         unsupported_namespaces = []
         for ns in namespaces:
-            if not (all_namespaces.has_key(ns) and all_namespaces[ns].available):
+            if not all_namespaces.has_key(ns):
+                unsupported_namespaces.append(ns)
+            elif not all_namespaces[ns].available:
                 unsupported_namespaces.append(ns)
         if unsupported_namespaces:
             raise UnavailableNamespaceFound(unsupported_namespaces)
 
+        path = "/proc/self/setgroups"
+        if self.is_user_namespace_available and "user" in namespaces:
+            if os.path.exists(path):
+                if setgroups is None:
+                    setgroups = "deny"
+            elif setgroups == "allow":
+                pass
+            else:
+                setgroups = None
+        else:
+            setgroups = None
 
         if "user" not in namespaces:
             maproot = False
@@ -824,6 +859,7 @@ class Toolbox(object):
         if "mount" not in namespaces:
              ns_bind_dir = None
              propagation = None
+             mountproc = False
 
         r1, w1 = os.pipe()
         r2, w2 = os.pipe()
@@ -831,8 +867,8 @@ class Toolbox(object):
 
         if pid == 0:
             self._run_cmd_in_new_namespaces(
-                r1, w1, r2, w2, namespaces, maproot, mountproc, mountpoint,
-                nscmd, propagation)
+                r1, w1, r2, w2, namespaces, maproot, mountproc,
+                mountpoint, nscmd, propagation, setgroups)
         else:
             self._continue_original_flow(r1, w1, r2, w2, namespaces,
                                          ns_bind_dir)
@@ -859,7 +895,7 @@ class NamespaceGenericException(Exception):
 class UnknownNamespaceFound(NamespaceGenericException):
     def __init__(self, namespaces=None):
         if namespaces:
-            self.msg = "unknown namespaces: %s found" % ", ".join(namespaces)
+            self.msg = "unknown namespaces found: %s" % ", ".join(namespaces)
         else:
             self.msg = "unknown namespaces found"
 
@@ -869,9 +905,19 @@ class UnknownNamespaceFound(NamespaceGenericException):
 class UnavailableNamespaceFound(NamespaceGenericException):
     def __init__(self, namespaces=None):
         if namespaces:
-            self.msg = "unavailable namespaces: %s found" % ", ".join(namespaces)
+            self.msg = "unavailable namespaces found: %s" % ", ".join(namespaces)
         else:
             self.msg = "unavailable namespaces found"
+
+    def __str__(self):
+        return self.msg
+
+class NamespaceSettingError(NamespaceGenericException):
+    def __init__(self, str=None):
+        if str:
+            self.msg = "namespaces setting error: %s" % str
+        else:
+            self.msg = "namespaces setting error"
 
     def __str__(self):
         return self.msg
