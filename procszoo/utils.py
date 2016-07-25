@@ -13,21 +13,22 @@ if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
 __all__ = [
-    "workbench", "atfork", "sched_getcpu", "mount", "umount",
-    "umount2", "unshare", "setns", "gethostname", "sethostname",
-    "getdomainname", "setdomainname", "pivot_root", "spawn_namespaces",
+    "workbench", "atfork", "sched_getcpu", "mount", "umount", "umount2",
+    "unshare", "setns", "pivot_root", "adjust_namespaces", "spawn_namespaces",
+    "gethostname", "sethostname", "getdomainname", "setdomainname",
     "cgroup_namespace_available", "ipc_namespace_available",
     "net_namespace_available", "mount_namespace_available",
     "pid_namespace_available", "user_namespace_available",
-    "uts_namespace_available", "CFunctionBaseException", "CFunctionNotFound",
+    "uts_namespace_available",
+    "CFunctionBaseException", "CFunctionNotFound",
     "NamespaceGenericException", "UnknownNamespaceFound",
     "UnavailableNamespaceFound", "NamespaceSettingError",]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
 _ACLCHAR = 0x006
-FORK_HANDLER_PROTOTYPE = CFUNCTYPE(None)
-NULL_HANDLER_POINTER = FORK_HANDLER_PROTOTYPE()
+_FORK_HANDLER_PROTOTYPE = CFUNCTYPE(None)
+_NULL_HANDLER_POINTER = _FORK_HANDLER_PROTOTYPE()
 
 def _fork():
     pid = os.fork()
@@ -216,11 +217,11 @@ class Workbench(object):
         self.functions[exported_name] = CFunction(
             possible_c_func_names=["pthread_atfork", "__register_atfork"],
             argtypes=[
-                FORK_HANDLER_PROTOTYPE,
-                FORK_HANDLER_PROTOTYPE,
-                FORK_HANDLER_PROTOTYPE],
+                _FORK_HANDLER_PROTOTYPE,
+                _FORK_HANDLER_PROTOTYPE,
+                _FORK_HANDLER_PROTOTYPE],
             failed=lambda res: res == -1)
-        self._register_fork_handler(NULL_HANDLER_POINTER)
+        self._register_fork_handler(_NULL_HANDLER_POINTER)
 
         exported_name = "gethostname"
         self.functions[exported_name] = CFunction(
@@ -282,19 +283,19 @@ class Workbench(object):
                 parent()
                 ...
         """
-        hdr_prototype = FORK_HANDLER_PROTOTYPE
+        hdr_prototype = _FORK_HANDLER_PROTOTYPE
         if prepare is None:
-            prepare = NULL_HANDLER_POINTER
+            prepare = _NULL_HANDLER_POINTER
         else:
-            prepare = FORK_HANDLER_PROTOTYPE(prepare)
+            prepare = _FORK_HANDLER_PROTOTYPE(prepare)
         if parent is None:
-            parent = NULL_HANDLER_POINTER
+            parent = _NULL_HANDLER_POINTER
         else:
-            parent = FORK_HANDLER_PROTOTYPE(parent)
+            parent = _FORK_HANDLER_PROTOTYPE(parent)
         if child is None:
-            child = NULL_HANDLER_POINTER
+            child = _NULL_HANDLER_POINTER
         else:
-            child = FORK_HANDLER_PROTOTYPE(child)
+            child = _FORK_HANDLER_PROTOTYPE(child)
 
         for hdr in prepare, parent, child:
             self._register_fork_handler(hdr)
@@ -845,6 +846,9 @@ def setdomainname(domainname=None):
 
 def pivot_root(new_root, put_old):
     return workbench.pivot_root(new_root, put_old)
+
+def adjust_namespaces(namespaces=None, negative_namespaces=None):
+    return workbench.adjust_namespaces(namespaces, negative_namespaces)
 
 def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
                          mountpoint="/proc", ns_bind_dir=None, nscmd=None,

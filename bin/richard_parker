@@ -62,14 +62,31 @@ if __name__ == "__main__":
     if options.mountproc and options.mountpoint is None:
         options.mountpoint = '/proc'
 
+    adjust_namespaces()
+
     if options.show_ns_status:
         max_len = sorted([len(ns)
                               for ns in workbench.namespaces.namespaces])[-1]
-        workbench.adjust_namespaces()
         for ns_name in workbench.namespaces.namespaces:
             ns_obj = getattr(workbench.namespaces, ns_name)
             print "%-6s: %-5s" % (ns_name, ns_obj.available)
         sys.exit(0)
+
+    require_root_privilege = False
+    if not user_namespace_available():
+        require_root_privilege = True
+    if options.namespaces and "user" not in options.namespaces:
+        require_root_privilege = True
+    if options.negative_namespaces and "user" in options.negative_namespaces:
+        require_root_privilege = True
+    if options.ns_bind_dir:
+        require_root_privilege = True
+    if require_root_privilege:
+        euid = os.geteuid()
+        if euid != 0:
+            sys.stderr.write(
+                "You do not have permission, pls try again as root user\n")
+            sys.exit(1)
 
     spawn_namespaces(
         namespaces=options.namespaces,

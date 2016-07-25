@@ -209,6 +209,7 @@ The *procszoo* exported following functions
     - getdomainname
     - setdomainname
     - pivot\_root
+    - adjust\_namespaces
     - spawn\_namespaces
     - cgroup\_namespace\_available
     - ipc\_namespace\_available
