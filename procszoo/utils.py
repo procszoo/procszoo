@@ -859,3 +859,6 @@ def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
         mountpoint=mountpoint, ns_bind_dir=ns_bind_dir, nscmd=nscmd,
         propagation=propagation, negative_namespaces=negative_namespaces,
         setgroups=setgroups)
+
+if __name__ == "__main__":
+    spawn_namespaces()
