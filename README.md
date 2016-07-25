@@ -191,7 +191,8 @@ namespace in a new terminal
 ## Exported Functions and Objects
 --------------------------------
 
-The *procszoo* exported following functions
+The *procszoo.utils* exported following functions and objects, and I don't
+think that you need learn them all
 
 * objects
     - workbench
@@ -210,7 +211,7 @@ The *procszoo* exported following functions
     - setdomainname
     - pivot\_root
     - adjust\_namespaces
-    - spawn\_namespaces
+    - **spawn\_namespaces**
     - cgroup\_namespace\_available
     - ipc\_namespace\_available
     - net\_namespace\_available
