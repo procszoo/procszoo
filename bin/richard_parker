@@ -5,8 +5,8 @@ import sys
 from optparse import OptionParser
 
 cwd = os.path.abspath("%s/.." % os.path.dirname(os.path.abspath(__file__)))
-sys.path.append("%s/lib" % cwd)
-from utils import CFunctions
+sys.path.append("%s" % cwd)
+from procszoo.utils import *
 
 if __name__ == "__main__":
     propagation_types = ["slave", "shared", "private", "unchange"]
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         dest="propagation",
         help="modify mount propagation in mount namespace: %s" %
         "|".join(propagation_types))
-    parser.add_option("-l", "--list", action="store_true", dest="list",
+    parser.add_option("-l", "--list", action="store_true", dest="show_ns_status",
                           default=False,
                           help="list namespaces status")
     (options, args) = parser.parse_args()
@@ -62,17 +62,16 @@ if __name__ == "__main__":
     if options.mountproc and options.mountpoint is None:
         options.mountpoint = '/proc'
 
-    c_funcs = CFunctions()
-    if list:
+    if options.show_ns_status:
         max_len = sorted([len(ns)
-                              for ns in c_funcs.namespaces.namespaces])[-1]
-        c_funcs.adjust_namespaces()
-        for ns_name in c_funcs.namespaces.namespaces:
-            ns_obj = getattr(c_funcs.namespaces, ns_name)
+                              for ns in workbench.namespaces.namespaces])[-1]
+        workbench.adjust_namespaces()
+        for ns_name in workbench.namespaces.namespaces:
+            ns_obj = getattr(workbench.namespaces, ns_name)
             print "%-6s: %-5s" % (ns_name, ns_obj.available)
         sys.exit(0)
 
-    c_funcs.spawn_namespaces(
+    spawn_namespaces(
         namespaces=options.namespaces,
         negative_namespaces=options.negative_namespaces,
         maproot=options.maproot,

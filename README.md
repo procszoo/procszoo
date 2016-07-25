@@ -11,7 +11,7 @@ power to manage your processes by Linux namespaces.
 - [Networks](#networks)
 - [Docs](#docs)
 - [Known Issues](#known-issues)
-- [Exported Functions](#exported-functions)
+- [Exported Functions and Objects](#exported-functions-and-objects)
 - [Test Platforms](#test-platforms)
 
 ## Goals
@@ -36,12 +36,14 @@ and do as follows you will get an interactve shell.
 
     git clone https://github.com/xning/procszoo.git
     cd procszoo/bin
+    ./richard_parker -l
     ./richard_parker
 
 If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6,
 you need run the *richard_parker* as *super user*
 
     cd procszoo/bin
+    ./richard_parker -l
     sudo ./richard_parker
 
 And now, you can check sth that we are in namespaces
@@ -64,25 +66,25 @@ from our namespaces
 * if you have trouble to try the above steps, please reference
 [Known Issues](#known-issues).
 
-## Getting Your Feet Wet with the *namespaces* Module
+## Getting Your Feet Wet with the *namespaces*
 -----------------------------------------------------
 
-First, make sure that the *namespaces* module path in the *sys.path*. You
+First, make sure that the *procszoo* module path in the *sys.path*. You
 can add the path as follows
 
     import sys
-    sys.path.append(path_to_namespaces)
+    sys.path.append(path_to_procszoo)
 
 then if you want to enable each namespaces that your kernel supports
 
-    from namespaces import *
+    from procszoo.utils import *
     
     if __name__ == "__main__":
         spawn_namespaces()
 
 If you need run your own program instead of an interactive *shell*, 
 
-    from namespaces import *
+    from procszoo.utils import *
     
     if __name__ == "__main__":
         spawn_namespaces(nscmd=path_to_your_program)
@@ -186,26 +188,43 @@ namespace in a new terminal
     We need a more latest iproute package, to do that pls reference
     [here](https://github.com/xning/procszoo/wiki/How-to-build-iproute-and-python-pyroute2-that-supports-net-namespace%3F)
 
-## Exported Functions
----------------------
+## Exported Functions and Objects
+--------------------------------
 
 The *procszoo* exported following functions
 
-- unshare
-- setns
-- sched\_getcpu
-- atfork
-- is\_namespace\_available
-- spawn\_namespaces
-- fork
-- mount
-- umount
-- umount2
-- pivot_root
-- gethostname
-- sethostname
-- getdomainname
-- setdomainname
+* objects
+    - workbench
+
+* functions
+    - atfork
+    - sched\_getcpu
+    - mount
+    - umount
+    - umount2
+    - unshare
+    - setns
+    - gethostname
+    - sethostname
+    - getdomainname
+    - setdomainname
+    - pivot\_root
+    - spawn\_namespaces
+    - cgroup\_namespace\_available
+    - ipc\_namespace\_available
+    - net\_namespace\_available
+    - mount\_namespace\_available
+    - pid\_namespace\_available
+    - user\_namespace\_available
+    - uts\_namespace\_available
+
+* Exceptions
+    - CFunctionBaseException
+    - CFunctionNotFound
+    - NamespaceGenericException
+    - UnknownNamespaceFound
+    - UnavailableNamespaceFound
+    - NamespaceSettingError
 
 ## Test Platforms
 ----------------

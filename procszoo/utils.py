@@ -12,8 +12,18 @@ from namespaces import *
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
+__all__ = [
+    "workbench", "atfork", "sched_getcpu", "mount", "umount",
+    "umount2", "unshare", "setns", "gethostname", "sethostname",
+    "getdomainname", "setdomainname", "pivot_root", "spawn_namespaces",
+    "cgroup_namespace_available", "ipc_namespace_available",
+    "net_namespace_available", "mount_namespace_available",
+    "pid_namespace_available", "user_namespace_available",
+    "uts_namespace_available", "CFunctionBaseException", "CFunctionNotFound",
+    "NamespaceGenericException", "UnknownNamespaceFound",
+    "UnavailableNamespaceFound", "NamespaceSettingError",]
+
 _HOST_NAME_MAX = 256
-_FORKHANDLERS = []
 _CDLL = cdll.LoadLibrary(None)
 _ACLCHAR = 0x006
 FORK_HANDLER_PROTOTYPE = CFUNCTYPE(None)
@@ -25,10 +35,6 @@ def _fork():
     if pid == - 1:
         raise RuntimeError(os.strerror(_errno_c_int.value))
     return pid
-
-def _register_fork_handler(handler):
-    if handler not in _FORKHANDLERS:
-        _FORKHANDLERS.append(handler)
 
 def _write2file(path, str=None):
     if path is None:
@@ -109,14 +115,21 @@ class CFunction(object):
                 self.func = func
                 break
 
-class CFunctions(object):
+class Workbench(object):
+    _FORKHANDLERS = []
+
+    @classmethod
+    def _register_fork_handler(cls, handler):
+        if handler not in cls._FORKHANDLERS:
+            cls._FORKHANDLERS.append(handler)
+
     def __init__(self):
         self.functions = {}
         self.namespaces = Namespaces()
         self._64bit = struct.calcsize('P') * 8 == 64
-        self.init_c_functions()
+        self._init_c_functions()
 
-    def init_c_functions(self):
+    def _init_c_functions(self):
         exported_name = "unshare"
         self.functions[exported_name] = CFunction(
             exported_name = exported_name,
@@ -207,7 +220,7 @@ class CFunctions(object):
                 FORK_HANDLER_PROTOTYPE,
                 FORK_HANDLER_PROTOTYPE],
             failed=lambda res: res == -1)
-        _register_fork_handler(NULL_HANDLER_POINTER)
+        self._register_fork_handler(NULL_HANDLER_POINTER)
 
         exported_name = "gethostname"
         self.functions[exported_name] = CFunction(
@@ -284,7 +297,7 @@ class CFunctions(object):
             child = FORK_HANDLER_PROTOTYPE(child)
 
         for hdr in prepare, parent, child:
-            self.register_self.fork_handler(hdr)
+            self._register_fork_handler(hdr)
 
         return self._c_func_atfork(prepare, parent, child)
 
@@ -382,7 +395,7 @@ class CFunctions(object):
         flags = reduce(lambda res, val: res | val, mount_vals, 0)
         self._c_func_mount(source, target, filesystemtype, flags, data)
 
-    def mount_proc(self, mountpoint="/proc"):
+    def _mount_proc(self, mountpoint="/proc"):
         self.mount(source="none", target=mountpoint, mount_type="private")
         self.mount(source="proc", target=mountpoint, filesystemtype="proc",
                    mount_type="mount_proc")
@@ -648,7 +661,7 @@ class CFunctions(object):
             if "mount" in namespaces and propagation is not None:
                 self.set_propagation(propagation)
             if mountproc:
-                self.mount_proc(mountpoint=mountpoint)
+                self._mount_proc(mountpoint=mountpoint)
 
             os.write(w3, chr(_ACLCHAR))
             os.close(w3)
@@ -708,7 +721,7 @@ class CFunctions(object):
     def spawn_namespaces(self, namespaces=None, maproot=True, mountproc=True,
                              mountpoint="/proc", ns_bind_dir=None, nscmd=None,
                              propagation=None, negative_namespaces=None,
-                             setgroups=None, options=None):
+                             setgroups=None):
         """
         workbench.spawn_namespace(namespaces=["pid", "net", "mount"])
         """
@@ -770,3 +783,75 @@ class CFunctionBaseException(Exception):
 
 class CFunctionNotFound(CFunctionBaseException):
     pass
+
+workbench = Workbench()
+del Workbench
+
+def atfork(prepare=None, parent=None, child=None):
+    return workbench.atfork(prepare=None, parent=None, child=None)
+
+def sched_getcpu():
+    return workbench.sched_getcpu()
+
+def cgroup_namespace_available():
+    return workbench.cgroup_namespace_available()
+
+def ipc_namespace_available():
+    return workbench.ipc_namespace_available()
+
+def net_namespace_available():
+    return workbench.net_namespace_available()
+
+def mount_namespace_available():
+    return workbench.mount_namespace_available()
+
+def pid_namespace_available():
+    return workbench.pid_namespace_available()
+
+def user_namespace_available():
+    return workbench.user_namespace_available()
+
+def uts_namespace_available():
+    return workbench.uts_namespace_available()
+
+def mount(source=None, target=None, mount_type=None,
+              filesystemtype=None, data=None):
+    return workbench.mount(source, target, mount_type,
+                               filesystemtype, data)
+
+def umount(mountpoint=None):
+    return workbench.umount(mountpoint)
+
+def umount2(mountpoint=None, behavior=None):
+    return workbench.umount2(mountpoint, behavior)
+
+def unshare(namespaces=None):
+    return workbench.unshare(namespaces)
+
+def setns(**kwargs):
+    return workbench.setns(**kwargs)
+
+def gethostname():
+    return workbench.gethostname()
+
+def sethostname(hostname=None):
+    return workbench.sethostname(hostname)
+
+def getdomainname():
+    return workbench.getdomainname()
+
+def setdomainname(domainname=None):
+    return workbench.setdomainname(domainname)
+
+def pivot_root(new_root, put_old):
+    return workbench.pivot_root(new_root, put_old)
+
+def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
+                         mountpoint="/proc", ns_bind_dir=None, nscmd=None,
+                         propagation=None, negative_namespaces=None,
+                         setgroups=None, options=None):
+    return workbench.spawn_namespaces(
+        namespaces=namespaces, maproot=maproot, mountproc=mountproc,
+        mountpoint=mountpoint, ns_bind_dir=ns_bind_dir, nscmd=nscmd,
+        propagation=propagation, negative_namespaces=negative_namespaces,
+        setgroups=setgroups)
