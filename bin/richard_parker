@@ -64,6 +64,7 @@ default it will enable each available namespaces"""
     return options, args
 
 def check_if_need_root_privilege(options):
+    adjust_namespaces()
     require_root_privilege = False
     if not user_namespace_available():
         require_root_privilege = True
