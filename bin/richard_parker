@@ -8,7 +8,7 @@ cwd = os.path.abspath("%s/.." % os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("%s" % cwd)
 from procszoo.utils import *
 
-if __name__ == "__main__":
+def get_options():
     propagation_types = ["slave", "shared", "private", "unchange"]
     progname = os.path.basename(sys.argv[0]) or 'richard_parker'
     project_url = "http://github.com/xning/procszoo"
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     epilog="%s is part of procszoo: %s"  % (progname, project_url)
     parser = OptionParser(
         usage="Usage: %prog [options] cmd_run_in_namespaces",
-        description='A simple cli to create new namespaces env, default enable each namespaces',
+        description=description,
         epilog=epilog)
     parser.add_option("-n", "--namespace", action="append", dest="namespaces",
                         help="namespace that should be create")
@@ -45,33 +45,25 @@ if __name__ == "__main__":
                         dest="ns_bind_dir",
                         help="dir that the new namespaces would be mounted to")
     parser.add_option(
-        "--propagation", action="store", type="string",
-        dest="propagation",
+        "--propagation", action="store", type="string", dest="propagation",
         help="modify mount propagation in mount namespace: %s" %
         "|".join(propagation_types))
-    parser.add_option("-l", "--list", action="store_true", dest="show_ns_status",
-                          default=False,
+    parser.add_option("-l", "--list", action="store_true",
+                          dest="show_ns_status", default=False,
                           help="list namespaces status")
+    parser.add_option("-v", "--version", action="store_true", default=False,
+                          dest="show_version")
+
     (options, args) = parser.parse_args()
-    nscmd=None
-    if args:
-        nscmd=args[0]
 
     if options.setgroups == "allow" and options.maproot:
         options.maproot = False
     if options.mountproc and options.mountpoint is None:
         options.mountpoint = '/proc'
 
-    adjust_namespaces()
+    return options, args
 
-    if options.show_ns_status:
-        max_len = sorted([len(ns)
-                              for ns in workbench.namespaces.namespaces])[-1]
-        for ns_name in workbench.namespaces.namespaces:
-            ns_obj = getattr(workbench.namespaces, ns_name)
-            print "%-6s: %-5s" % (ns_name, ns_obj.available)
-        sys.exit(0)
-
+def check_if_need_root_privilege(options):
     require_root_privilege = False
     if not user_namespace_available():
         require_root_privilege = True
@@ -87,6 +79,28 @@ if __name__ == "__main__":
             sys.stderr.write(
                 "You do not have permission, pls try again as root user\n")
             sys.exit(1)
+
+def show_namespaces_then_quit(workbench):
+    if options.show_ns_status:
+        adjust_namespaces()
+        max_len = sorted([
+            len(ns) for ns in workbench.namespaces.namespaces])[-1]
+        for ns_name in workbench.namespaces.namespaces:
+            ns_obj = getattr(workbench.namespaces, ns_name)
+            print "%-6s: %-5s" % (ns_name, ns_obj.available)
+        sys.exit(0)
+
+if __name__ == "__main__":
+    options, args = get_options()
+    nscmd = None
+    if args: nscmd=args
+
+    if options.show_version:
+        sys.stderr.write("version: %s\n" % __version__)
+        sys.exit(1)
+
+    check_if_need_root_privilege(options)
+    show_namespaces_then_quit(workbench)
 
     spawn_namespaces(
         namespaces=options.namespaces,

@@ -1,3 +1,6 @@
+# Copyright 2016 Red Hat, Inc. All Rights Reserved.
+# Licensed to GPL under a Contributor Agreement.
+
 import os
 import sys
 import atexit
@@ -12,6 +15,7 @@ from namespaces import *
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
+__version__ = '0.95.3'
 __all__ = [
     "workbench", "atfork", "sched_getcpu", "mount", "umount", "umount2",
     "unshare", "setns", "pivot_root", "adjust_namespaces", "spawn_namespaces",
@@ -19,7 +23,7 @@ __all__ = [
     "cgroup_namespace_available", "ipc_namespace_available",
     "net_namespace_available", "mount_namespace_available",
     "pid_namespace_available", "user_namespace_available",
-    "uts_namespace_available",
+    "uts_namespace_available", "__version__",
     "CFunctionBaseException", "CFunctionNotFound",
     "NamespaceGenericException", "UnknownNamespaceFound",
     "UnavailableNamespaceFound", "NamespaceSettingError",]
@@ -675,7 +679,10 @@ class Workbench(object):
                 nscmd = _find_shell()
             args = ["-c", my_init, "--skip-startup-files",
                     "--skip-runit", "--quiet"]
-            args.append(nscmd)
+            if isinstance(nscmd, list):
+                args = args + nscmd
+            else:
+                args.append(nscmd)
             os.execlp("python", *args)
             sys.exit(0)
         else:
