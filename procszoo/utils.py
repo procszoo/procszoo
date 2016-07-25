@@ -23,7 +23,7 @@ __all__ = [
     "cgroup_namespace_available", "ipc_namespace_available",
     "net_namespace_available", "mount_namespace_available",
     "pid_namespace_available", "user_namespace_available",
-    "uts_namespace_available", "__version__",
+    "uts_namespace_available", "show_namespaces_status", "__version__",
     "CFunctionBaseException", "CFunctionNotFound",
     "NamespaceGenericException", "UnknownNamespaceFound",
     "UnavailableNamespaceFound", "NamespaceSettingError",]
@@ -92,8 +92,8 @@ def _find_shell(name="bash", shell=None):
 
 class CFunction(object):
     """
-    Python class for c library function. These functions could be accessed
-    by workbench.c_func_name, e.g., c_func_unshare.
+    wrapper class for C library function. These functions could be accessed
+    by workbench._c_func_name, e.g., workbench._c_func_unshare.
     """
     def __init__(self, argtypes=None, restype=c_int,
                      exported_name=None,
@@ -121,6 +121,9 @@ class CFunction(object):
                 break
 
 class Workbench(object):
+    """
+    class used as a singleton.
+    """
     _FORKHANDLERS = []
 
     @classmethod
@@ -610,6 +613,15 @@ class Workbench(object):
         if os.path.exists(path):
             _write2file(path, setgroups)
 
+    def show_namespaces_status(self):
+        status = []
+        self.adjust_namespaces()
+        namespaces = self.namespaces.namespaces
+        for ns_name in namespaces:
+            ns_obj = getattr(self.namespaces, ns_name)
+            status.append((ns_name, ns_obj.available))
+        return status
+
     def bind_ns_files(self, pid, namespaces=None, ns_bind_dir=None):
         if ns_bind_dir is None or namespaces is None:
             return
@@ -837,6 +849,9 @@ def unshare(namespaces=None):
     return workbench.unshare(namespaces)
 
 def setns(**kwargs):
+    """
+    setns(path2ns, namespace)
+    """
     return workbench.setns(**kwargs)
 
 def gethostname():
@@ -866,6 +881,8 @@ def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
         mountpoint=mountpoint, ns_bind_dir=ns_bind_dir, nscmd=nscmd,
         propagation=propagation, negative_namespaces=negative_namespaces,
         setgroups=setgroups)
+def show_namespaces_status():
+    return workbench.show_namespaces_status()
 
 if __name__ == "__main__":
     spawn_namespaces()

@@ -13,7 +13,7 @@ def get_options():
     progname = os.path.basename(sys.argv[0]) or 'richard_parker'
     project_url = "http://github.com/xning/procszoo"
     description="""A simple cli to create new namespaces env,
-    default it enable each namespaces"""
+default it will enable each available namespaces"""
     epilog="%s is part of procszoo: %s"  % (progname, project_url)
     parser = OptionParser(
         usage="Usage: %prog [options] cmd_run_in_namespaces",
@@ -82,12 +82,8 @@ def check_if_need_root_privilege(options):
 
 def show_namespaces_then_quit(workbench):
     if options.show_ns_status:
-        adjust_namespaces()
-        max_len = sorted([
-            len(ns) for ns in workbench.namespaces.namespaces])[-1]
-        for ns_name in workbench.namespaces.namespaces:
-            ns_obj = getattr(workbench.namespaces, ns_name)
-            print "%-6s: %-5s" % (ns_name, ns_obj.available)
+        for v in show_namespaces_status():
+            print "%-6s: %-5s" % v
         sys.exit(0)
 
 if __name__ == "__main__":

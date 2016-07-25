@@ -212,6 +212,7 @@ think that you need learn them all
     - pivot\_root
     - adjust\_namespaces
     - **spawn\_namespaces**
+    - show\_namespaces\_status
     - cgroup\_namespace\_available
     - ipc\_namespace\_available
     - net\_namespace\_available
