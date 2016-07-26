@@ -26,16 +26,24 @@ default it will enable each available namespaces"""
                           help="namespace that should not be create")
     parser.add_option("-r", "--maproot", action="store_true", dest="maproot",
                           default=True,
-                          help="map current effective user/group to root/root")
+                          help="""map current effective user/group to root/root,
+implies -n user""")
     parser.add_option("--no-maproot", action="store_false",
                         dest="maproot")
+    parser.add_option("-u", "--user-map", action="append", dest="users_map",
+                          type="string",
+                          help="user map settings")
+    parser.add_option("-g", "--group-map", action="append", dest="groups_map",
+                          type="string",
+                          help="group map settings")
     parser.add_option(
         "-s", "--setgroups", action="store", type="string",
         dest="setgroups",
         help="""control the setgroups syscall in user namespaces,
         when setting to 'allow' will enable --no-maproot option""")
     parser.add_option("--mountproc", action="store_true", dest="mountproc",
-                        help="remount procfs mountpoin", default=True)
+                        help="remount procfs mountpoin, implies --n mount",
+                      default=True)
     parser.add_option("--no-mountproc", action="store_false", dest="mountproc",
                         help="do not remount procfs")
     parser.add_option("--mountpoint", action="store", type="string",
@@ -107,4 +115,6 @@ if __name__ == "__main__":
         mountpoint=options.mountpoint,
         ns_bind_dir=options.ns_bind_dir,
         propagation=options.propagation,
-        nscmd=nscmd, setgroups=options.setgroups)
+        nscmd=nscmd, users_map=options.users_map,
+        groups_map=options.groups_map,
+        setgroups=options.setgroups)

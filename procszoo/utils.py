@@ -17,16 +17,17 @@ if os.uname()[0] != "Linux":
 
 __version__ = '0.95.3'
 __all__ = [
-    "workbench", "atfork", "sched_getcpu", "mount", "umount", "umount2",
-    "unshare", "setns", "pivot_root", "adjust_namespaces", "spawn_namespaces",
-    "gethostname", "sethostname", "getdomainname", "setdomainname",
     "cgroup_namespace_available", "ipc_namespace_available",
     "net_namespace_available", "mount_namespace_available",
     "pid_namespace_available", "user_namespace_available",
-    "uts_namespace_available", "show_namespaces_status", "__version__",
-    "CFunctionBaseException", "CFunctionNotFound",
+    "uts_namespace_available", "show_namespaces_status",
     "NamespaceGenericException", "UnknownNamespaceFound",
-    "UnavailableNamespaceFound", "NamespaceSettingError",]
+    "UnavailableNamespaceFound", "NamespaceSettingError",
+    "CFunctionBaseException", "CFunctionNotFound",
+    "workbench", "atfork", "sched_getcpu", "mount", "umount",
+    "umount2", "unshare", "pivot_root", "adjust_namespaces",
+    "setns", "spawn_namespaces", "gethostname", "sethostname",
+    "getdomainname", "setdomainname", "__version__",]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
@@ -46,20 +47,41 @@ def _write2file(path, str=None):
         raise RuntimeError("path cannot be none")
     if str is None:
         str = ""
-    if os.path.exists(path):
-        hdr = open(path, 'w')
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT)
+    os.write(fd, str)
+    os.close(fd)
+
+def _map_id(map_file, map, pid=None):
+    if pid is None:
+        pid = "self"
     else:
-        hdr = open(path, 'a')
-
-    hdr.write(str)
-    hdr.close()
-
-def _map_id(map_file, map):
-    path = "/proc/self/%s" % map_file
+        pid = "%d" % pid
+    path = "/proc/%s/%s" % (pid, map_file)
     if os.path.exists(path):
         _write2file(path, map)
     else:
         raise RuntimeError("%s: No such file" % path)
+
+def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
+    if maproot:
+        maps = ["0 %d 1" % os.geteuid()]
+    else:
+        maps = []
+    if users_map:
+        maps = maps + users_map
+    if maps:
+        map_str = "%s\n" % "\n".join(maps)
+        _map_id("uid_map", map_str, pid)
+
+    if maproot:
+        maps = ["0 %d 1" % os.getegid()]
+    else:
+        maps = []
+    if groups_map is not None:
+        maps = maps + groups_map
+    if maps:
+        map_str = "%s\n" % "\n".join(maps)
+        _map_id("gid_map", map_str, pid)
 
 def _find_my_init(paths=None, name=None):
     if paths is None:
@@ -589,10 +611,14 @@ class Workbench(object):
 
         return namespaces
 
-    def setgroups_control(self, setgroups):
+    def setgroups_control(self, setgroups=None, pid=None):
         if setgroups is None:
-            return
-        path = "/proc/self/setgroups"
+            setgroups = "deny"
+        if pid is None:
+            pid = "self"
+        else:
+            pid = "%d" % pid
+        path = "/proc/%s/setgroups" % pid
         if not os.path.exists(path):
             if setgroups == "deny":
                 raise NamespaceSettingError("cannot set setgroups to 'deny'")
@@ -644,15 +670,8 @@ class Workbench(object):
             self.mount(source=source, target=target, mount_type="bind")
 
     def _run_cmd_in_new_namespaces(
-            self, r1, w1, r2, w2, namespaces, maproot, mountproc, mountpoint,
-            nscmd, propagation, setgroups):
-        if setgroups == "allow" and maproot:
-            raise NamespaceSettingError()
-
-        if maproot:
-            uid = os.geteuid()
-            gid = os.getegid()
-
+            self, r1, w1, r2, w2, namespaces, mountproc,
+            mountpoint, nscmd, propagation):
         os.close(r1)
         os.close(w2)
 
@@ -668,12 +687,6 @@ class Workbench(object):
 
             os.close(r3)
             os.close(w4)
-
-            self.setgroups_control(setgroups)
-
-            if maproot:
-                _map_id("uid_map", "0 %d 1" % uid)
-                _map_id("gid_map", "0 %d 1" % gid)
 
             if "mount" in namespaces and propagation is not None:
                 self.set_propagation(propagation)
@@ -718,21 +731,33 @@ class Workbench(object):
             os.waitpid(pid, 0)
             sys.exit(0)
 
-    def _continue_original_flow(self, r1, w1, r2, w2, namespaces, ns_bind_dir):
-       os.close(w1)
-       os.close(r2)
+    def _continue_original_flow(
+            self, r1, w1, r2, w2, namespaces, ns_bind_dir,
+            setgroups, maproot, users_map, groups_map):
+        if setgroups == "allow" and maproot:
+            raise NamespaceSettingError()
 
-       child_pid = os.read(r1, 64)
-       os.close(r1)
-       try:
-           child_pid = int(child_pid)
-       except ValueError:
-           raise RuntimeError("failed to get the child pid")
+        if maproot:
+            uid = os.geteuid()
+            gid = os.getegid()
 
-       if ns_bind_dir is not None and "mount" in namespaces:
-           self.bind_ns_files(child_pid, namespaces, ns_bind_dir)
-       os.write(w2, chr(_ACLCHAR))
-       os.close(w2)
+        os.close(w1)
+        os.close(r2)
+
+        child_pid = os.read(r1, 64)
+        os.close(r1)
+        try:
+            child_pid = int(child_pid)
+        except ValueError:
+            raise RuntimeError("failed to get the child pid")
+
+        self.setgroups_control(setgroups, child_pid)
+        _write_to_uid_and_gid_map(maproot, users_map, groups_map, child_pid)
+
+        if ns_bind_dir is not None and "mount" in namespaces:
+            self.bind_ns_files(child_pid, namespaces, ns_bind_dir)
+        os.write(w2, chr(_ACLCHAR))
+        os.close(w2)
 
     def _namespace_available(self, namespace):
         ns_obj = getattr(self.namespaces, namespace)
@@ -741,10 +766,14 @@ class Workbench(object):
     def spawn_namespaces(self, namespaces=None, maproot=True, mountproc=True,
                              mountpoint="/proc", ns_bind_dir=None, nscmd=None,
                              propagation=None, negative_namespaces=None,
-                             setgroups=None):
+                             setgroups=None, users_map=None,
+                             groups_map=None):
         """
         workbench.spawn_namespace(namespaces=["pid", "net", "mount"])
         """
+        if setgroups == "allow" and maproot:
+            raise NamespaceSettingError()
+
         namespaces = self.adjust_namespaces(namespaces, negative_namespaces)
 
         all_namespaces = self.namespaces.namespaces
@@ -756,6 +785,20 @@ class Workbench(object):
                 unsupported_namespaces.append(ns)
         if unsupported_namespaces:
             raise UnavailableNamespaceFound(unsupported_namespaces)
+
+        if mountproc:
+            if self.mount_namespace_available():
+                if "mount" not in namespaces:
+                    namespaces.append("mount")
+            else:
+                raise NamespaceSettingError()
+
+        if maproot:
+            if self.user_namespace_available():
+                if "user" not in namespaces:
+                    namespaces.append("user")
+            else:
+                raise NamespaceSettingError()
 
         path = "/proc/self/setgroups"
         if self.user_namespace_available and "user" in namespaces:
@@ -786,11 +829,12 @@ class Workbench(object):
 
         if pid == 0:
             self._run_cmd_in_new_namespaces(
-                r1, w1, r2, w2, namespaces, maproot, mountproc,
-                mountpoint, nscmd, propagation, setgroups)
+                r1, w1, r2, w2, namespaces,
+                mountproc, mountpoint, nscmd, propagation)
         else:
-            self._continue_original_flow(r1, w1, r2, w2, namespaces,
-                                         ns_bind_dir)
+            self._continue_original_flow(
+                r1, w1, r2, w2, namespaces, ns_bind_dir,
+                setgroups, maproot, users_map, groups_map)
             def ensure_wait_child_process(pid=pid):
                 try:
                     os.waitpid(pid, 0)
@@ -875,12 +919,14 @@ def adjust_namespaces(namespaces=None, negative_namespaces=None):
 def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
                          mountpoint="/proc", ns_bind_dir=None, nscmd=None,
                          propagation=None, negative_namespaces=None,
-                         setgroups=None, options=None):
+                         setgroups=None, users_map=None,
+                         groups_map=None):
     return workbench.spawn_namespaces(
         namespaces=namespaces, maproot=maproot, mountproc=mountproc,
         mountpoint=mountpoint, ns_bind_dir=ns_bind_dir, nscmd=nscmd,
         propagation=propagation, negative_namespaces=negative_namespaces,
-        setgroups=setgroups)
+        setgroups=setgroups, users_map=users_map, groups_map=groups_map)
+
 def show_namespaces_status():
     return workbench.show_namespaces_status()
 
