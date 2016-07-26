@@ -70,6 +70,8 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
     if users_map:
         maps = maps + users_map
     if maps:
+        if len(maps) > 5:
+            raise NamespaceSettingError()
         map_str = "%s\n" % "\n".join(maps)
         _map_id("uid_map", map_str, pid)
 
@@ -80,6 +82,8 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
     if groups_map is not None:
         maps = maps + groups_map
     if maps:
+        if len(maps) > 5:
+            raise NamespaceSettingError()
         map_str = "%s\n" % "\n".join(maps)
         _map_id("gid_map", map_str, pid)
 
