@@ -7,7 +7,7 @@ power to manage your processes by Linux namespaces.
 ## Contents
 - [Goals](#goals)
 - [Try It](#try-it)
-- [Getting Your Feet Wet with the *namespaces* Module](#getting-your-feet-wet-with-the-namespaces-module)
+- [Getting Your Feet Wet with the *procszoo* Module](#getting-your-feet-wet-with-the-procszoo-module)
 - [Networks](#networks)
 - [Docs](#docs)
 - [Known Issues](#known-issues)
@@ -66,8 +66,8 @@ from our namespaces
 * if you have trouble to try the above steps, please reference
 [Known Issues](#known-issues).
 
-## Getting Your Feet Wet with the *namespaces*
------------------------------------------------------
+## Getting Your Feet Wet with the *procszoo* module
+---------------------------------------------------
 
 First, make sure that the *procszoo* module path in the *sys.path*. You
 can add the path as follows
