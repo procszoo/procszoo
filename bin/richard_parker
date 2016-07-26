@@ -82,6 +82,8 @@ def check_if_need_root_privilege(options):
         require_root_privilege = True
     if options.ns_bind_dir:
         require_root_privilege = True
+    if options.users_map or options.groups_map:
+        require_root_privilege = True
     if require_root_privilege:
         euid = os.geteuid()
         if euid != 0:
