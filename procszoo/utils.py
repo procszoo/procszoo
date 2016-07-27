@@ -11,6 +11,11 @@ from ctypes import (cdll, c_int, c_long, c_char_p, c_size_t, string_at,
 import pickle
 import json
 from namespaces import *
+try:
+    _syscall_nr_probed = True
+    from procszoo.syscall_numbers import NR_SETNS, NR_PIVOT_ROOT
+except ImportError:
+    _syscall_nr_probed = False
 
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
@@ -193,12 +198,13 @@ class Workbench(object):
                 })
 
         exported_name = "syscall"
+        if _syscall_nr_probed:
+            extra = {"setns": NR_SETNS, "pivot_root": NR_PIVOT_ROOT,}
+        else:
+            extra = {"setns": {'32bit': 346, '64bit': 308},
+                         "pivot_root": {'32bit': 217, '64bit': 155}}
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name,
-            extra = {
-                "setns": {'32bit': 346, '64bit': 308},
-                "pivot_root": {'32bit': 217, '64bit': 155}
-                })
+            exported_name = exported_name, extra=extra)
 
         exported_name = "mount"
         self.functions[exported_name] = CFunction(
@@ -283,11 +289,16 @@ class Workbench(object):
 
     def _syscall_nr(self, syscall_name):
         func_obj = self.functions["syscall"]
+        if func_obj.extra.has_key(syscall_name):
+            raise CFunctionUnknowSyscall()
         NR = func_obj.extra[syscall_name]
-        if self._64bit:
-            return NR["64bit"]
+        if isinstance(NR, dict):
+            if self._64bit:
+                return NR["64bit"]
+            else:
+                return NR["32bit"]
         else:
-            return NR["32bit"]
+            return NR
 
     def __getattr__(self, name):
         if name.startswith("_c_func_"):
@@ -869,6 +880,9 @@ class CFunctionBaseException(Exception):
     pass
 
 class CFunctionNotFound(CFunctionBaseException):
+    pass
+
+class CFunctionUnknowSyscall(CFunctionNotFound):
     pass
 
 workbench = Workbench()
