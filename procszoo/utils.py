@@ -931,7 +931,10 @@ def unshare(namespaces=None):
 
 def setns(**kwargs):
     """
-    setns(path2ns, namespace)
+    setns(fd, namespace)
+    setns(path, namespace)
+    setns(pid, namespace)
+    setns(file_obj, namespace)
     """
     return workbench.setns(**kwargs)
 
