@@ -26,7 +26,8 @@ __all__ = [
     "CFunctionBaseException", "CFunctionNotFound",
     "workbench", "atfork", "sched_getcpu", "mount", "umount",
     "umount2", "unshare", "pivot_root", "adjust_namespaces",
-    "setns", "spawn_namespaces", "gethostname", "sethostname",
+    "setns", "spawn_namespaces", "check_namespaces_available_status",
+    "show_namespaces_status", "gethostname", "sethostname",
     "getdomainname", "setdomainname", "__version__",]
 
 _HOST_NAME_MAX = 256
@@ -34,6 +35,8 @@ _CDLL = cdll.LoadLibrary(None)
 _ACLCHAR = 0x006
 _FORK_HANDLER_PROTOTYPE = CFUNCTYPE(None)
 _NULL_HANDLER_POINTER = _FORK_HANDLER_PROTOTYPE()
+_MAX_USERS_MAP = 5
+_MAX_GROUPS_MAP = 5
 
 def _fork():
     pid = os.fork()
@@ -51,7 +54,7 @@ def _write2file(path, str=None):
     os.write(fd, str)
     os.close(fd)
 
-def _map_id(map_file, map, pid=None):
+def _map_id(map_file, map=None, pid=None):
     if pid is None:
         pid = "self"
     else:
@@ -70,7 +73,7 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
     if users_map:
         maps = maps + users_map
     if maps:
-        if len(maps) > 5:
+        if len(maps) > _MAX_USERS_MAP:
             raise NamespaceSettingError()
         map_str = "%s\n" % "\n".join(maps)
         _map_id("uid_map", map_str, pid)
@@ -82,7 +85,7 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
     if groups_map is not None:
         maps = maps + groups_map
     if maps:
-        if len(maps) > 5:
+        if len(maps) > _MAX_GROUPS_MAP:
             raise NamespaceSettingError()
         map_str = "%s\n" % "\n".join(maps)
         _map_id("gid_map", map_str, pid)
@@ -104,6 +107,7 @@ def _find_my_init(paths=None, name=None):
         my_init = "%s/%s" % (path, name)
         if os.path.exists(my_init):
             return my_init
+    raise NamespaceSettingError()
 
 def _find_shell(name="bash", shell=None):
     if shell is not None:
@@ -162,6 +166,7 @@ class Workbench(object):
         self.namespaces = Namespaces()
         self._64bit = struct.calcsize('P') * 8 == 64
         self._init_c_functions()
+        self._namespaces_available_status_checked = False
 
     def _init_c_functions(self):
         exported_name = "unshare"
@@ -335,11 +340,14 @@ class Workbench(object):
 
         return self._c_func_atfork(prepare, parent, child)
 
-    def _check_namespaces_available_status(self):
+    def check_namespaces_available_status(self):
         """
         On rhel6/7, the kernel default does not enable all namespaces
         that it supports.
         """
+        if self._namespaces_available_status_checked:
+            return
+
         unshare = self.functions["unshare"].func
         EINVAL = 22
         r, w = os.pipe()
@@ -379,6 +387,8 @@ class Workbench(object):
                 if ns_name not in keys:
                     ns_obj = getattr(self.namespaces, ns_name)
                     ns_obj.available = False
+
+            self._namespaces_available_status_checked = True
 
     def sched_getcpu(self):
         return self._c_func_sched_getcpu()
@@ -594,7 +604,7 @@ class Workbench(object):
         return self._c_func_syscall(c_long(NR_PIVOT_ROOT), new_root, put_old)
 
     def adjust_namespaces(self, namespaces=None, negative_namespaces=None):
-        self._check_namespaces_available_status()
+        self.check_namespaces_available_status()
         available_namespaces = []
         for ns_name in self.namespaces.namespaces:
             ns_obj = getattr(self.namespaces, ns_name)
@@ -617,7 +627,7 @@ class Workbench(object):
 
     def setgroups_control(self, setgroups=None, pid=None):
         if setgroups is None:
-            setgroups = "deny"
+            return
         if pid is None:
             pid = "self"
         else:
@@ -645,7 +655,7 @@ class Workbench(object):
 
     def show_namespaces_status(self):
         status = []
-        self.adjust_namespaces()
+        self.check_namespaces_available_status()
         namespaces = self.namespaces.namespaces
         for ns_name in namespaces:
             ns_obj = getattr(self.namespaces, ns_name)
@@ -755,8 +765,10 @@ class Workbench(object):
         except ValueError:
             raise RuntimeError("failed to get the child pid")
 
-        self.setgroups_control(setgroups, child_pid)
-        _write_to_uid_and_gid_map(maproot, users_map, groups_map, child_pid)
+        if "user" in namespaces:
+            self.setgroups_control(setgroups, child_pid)
+            _write_to_uid_and_gid_map(maproot, users_map,
+                                          groups_map, child_pid)
 
         if ns_bind_dir is not None and "mount" in namespaces:
             self.bind_ns_files(child_pid, namespaces, ns_bind_dir)
@@ -804,6 +816,10 @@ class Workbench(object):
             else:
                 raise NamespaceSettingError()
 
+        if mount_namespace_available():
+            if "mount" in namespaces and propagation is None:
+                propagation = "private"
+
         path = "/proc/self/setgroups"
         if self.user_namespace_available and "user" in namespaces:
             if os.path.exists(path):
@@ -818,6 +834,9 @@ class Workbench(object):
 
         if "user" not in namespaces:
             maproot = False
+            setgroups = None
+            users_map = None
+            groups_map = None
 
         if "pid" not in namespaces:
             mountproc = False
@@ -930,6 +949,9 @@ def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
         mountpoint=mountpoint, ns_bind_dir=ns_bind_dir, nscmd=nscmd,
         propagation=propagation, negative_namespaces=negative_namespaces,
         setgroups=setgroups, users_map=users_map, groups_map=groups_map)
+
+def check_namespaces_available_status():
+    return workbench.check_namespaces_available_status()
 
 def show_namespaces_status():
     return workbench.show_namespaces_status()

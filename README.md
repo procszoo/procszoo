@@ -197,7 +197,11 @@ think that you need learn them all
 * objects
     - workbench
 
-* functions
+* key functions
+    - spawn\_namespaces
+    - check\_namespaces\_available\_status
+
+* helpful functions
     - atfork
     - sched\_getcpu
     - mount
@@ -211,7 +215,6 @@ think that you need learn them all
     - setdomainname
     - pivot\_root
     - adjust\_namespaces
-    - **spawn\_namespaces**
     - show\_namespaces\_status
     - cgroup\_namespace\_available
     - ipc\_namespace\_available

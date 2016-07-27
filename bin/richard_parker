@@ -13,7 +13,8 @@ def get_options():
     progname = os.path.basename(sys.argv[0]) or 'richard_parker'
     project_url = "http://github.com/xning/procszoo"
     description="""A simple cli to create new namespaces env,
-default it will enable each available namespaces"""
+default it will enable each available namespaces, and if a nemespace
+unavailable, it will disable options for the namespaces."""
     epilog="%s is part of procszoo: %s"  % (progname, project_url)
     parser = OptionParser(
         usage="Usage: %prog [options] cmd_run_in_namespaces",
@@ -32,10 +33,10 @@ implies -n user""")
                         dest="maproot")
     parser.add_option("-u", "--user-map", action="append", dest="users_map",
                           type="string",
-                          help="user map settings")
+                          help="user map settings, implies -n user")
     parser.add_option("-g", "--group-map", action="append", dest="groups_map",
                           type="string",
-                          help="group map settings")
+                          help="group map settings, implies -n user")
     parser.add_option(
         "-s", "--setgroups", action="store", type="string",
         dest="setgroups",
@@ -64,15 +65,25 @@ implies -n user""")
 
     (options, args) = parser.parse_args()
 
+    if not user_namespace_available():
+        options.maproot = False
+        options.users_map = None
+        options.group_map = None
     if options.setgroups == "allow" and options.maproot:
         options.maproot = False
+        options.users_map = None
+        options.group_map = None
+    if not pid_namespace_available():
+        options.mountproc = False
+        options.mountpoint = None
     if options.mountproc and options.mountpoint is None:
         options.mountpoint = '/proc'
+    if not mount_namespace_available():
+        options.propagation = 'unchange'
 
     return options, args
 
 def check_if_need_root_privilege(options):
-    adjust_namespaces()
     require_root_privilege = False
     if not user_namespace_available():
         require_root_privilege = True
@@ -98,6 +109,7 @@ def show_namespaces_then_quit(workbench):
         sys.exit(0)
 
 if __name__ == "__main__":
+    check_namespaces_available_status()
     options, args = get_options()
     nscmd = None
     if args: nscmd=args
@@ -106,8 +118,8 @@ if __name__ == "__main__":
         sys.stderr.write("version: %s\n" % __version__)
         sys.exit(1)
 
-    check_if_need_root_privilege(options)
     show_namespaces_then_quit(workbench)
+    check_if_need_root_privilege(options)
 
     spawn_namespaces(
         namespaces=options.namespaces,
