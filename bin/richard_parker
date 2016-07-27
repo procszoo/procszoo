@@ -102,13 +102,13 @@ def check_if_need_root_privilege(options):
                 "You do not have permission, pls try again as root user\n")
             sys.exit(1)
 
-def show_namespaces_then_quit(workbench):
+def show_namespaces_then_quit(options):
     if options.show_ns_status:
         for v in show_namespaces_status():
             print "%-6s: %-5s" % v
         sys.exit(0)
 
-if __name__ == "__main__":
+def main():
     check_namespaces_available_status()
     options, args = get_options()
     nscmd = None
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         sys.stderr.write("version: %s\n" % __version__)
         sys.exit(1)
 
-    show_namespaces_then_quit(workbench)
+    show_namespaces_then_quit(options)
     check_if_need_root_privilege(options)
 
     spawn_namespaces(
@@ -132,3 +132,6 @@ if __name__ == "__main__":
         nscmd=nscmd, users_map=options.users_map,
         groups_map=options.groups_map,
         setgroups=options.setgroups)
+
+if __name__ == "__main__":
+    main()

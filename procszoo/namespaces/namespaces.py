@@ -53,6 +53,9 @@ class Namespace(object):
         else:
             self.available = False
 
+        if isinstance(self.available, bool):
+            return
+
         kernel_config = "/boot/config-%s" % os.uname()[2]
         if os.path.exists(kernel_config):
             regex = re.compile('^CONFIG_%s_NS=(y|m)$' % self.entry.upper())
