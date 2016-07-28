@@ -1,0 +1,4 @@
+It's better to run ./configure first, or please remove
+procszoo/syscall_numbers.py file if the file exists.
+
+You need manually to run tests/test* scripts.

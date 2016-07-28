@@ -1,6 +1,7 @@
 __all__ = [
     "NamespaceGenericException", "UnknownNamespaceFound",
-    "UnavailableNamespaceFound", "NamespaceSettingError"]
+    "UnavailableNamespaceFound", "NamespaceSettingError",
+    "NamespaceRequireSuperuserPrivilege"]
 
 class NamespaceGenericException(Exception):
     #status is copy from mock/py/mockbuild/exception.py
@@ -28,7 +29,8 @@ class UnknownNamespaceFound(NamespaceGenericException):
 class UnavailableNamespaceFound(NamespaceGenericException):
     def __init__(self, namespaces=None):
         if namespaces:
-            self.msg = "unavailable namespaces found: %s" % ", ".join(namespaces)
+            self.msg = ("unavailable namespaces found: %s"
+                            % ", ".join(namespaces))
         else:
             self.msg = "unavailable namespaces found"
 
@@ -41,6 +43,17 @@ class NamespaceSettingError(NamespaceGenericException):
             self.msg = "namespaces setting error: %s" % str
         else:
             self.msg = "namespaces setting error"
+
+    def __str__(self):
+        return self.msg
+
+class NamespaceRequireSuperuserPrivilege(NamespaceSettingError):
+    def __init__(self, str=None):
+        if str:
+            self.msg = ("namespaces setting requires superuser privilege: %s"
+                            % str)
+        else:
+            self.msg = "namespaces setting requires superuser privilege"
 
     def __str__(self):
         return self.msg

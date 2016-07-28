@@ -4,7 +4,7 @@ if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
 __all__ = [
-    "Namespace", "Namespaces",
+    "Namespace", "Namespaces", "NamespaceRequireSuperuserPrivilege",
     "NamespaceGenericException", "UnknownNamespaceFound",
     "UnavailableNamespaceFound", "NamespaceSettingError"]
 

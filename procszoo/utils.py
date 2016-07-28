@@ -9,6 +9,7 @@ import struct
 from ctypes import (cdll, c_int, c_long, c_char_p, c_size_t, string_at,
                     create_string_buffer, c_void_p, CFUNCTYPE, pythonapi)
 import pickle
+from copy import copy
 import json
 from namespaces import *
 try:
@@ -28,6 +29,7 @@ __all__ = [
     "uts_namespace_available", "show_namespaces_status",
     "NamespaceGenericException", "UnknownNamespaceFound",
     "UnavailableNamespaceFound", "NamespaceSettingError",
+    "NamespaceRequireSuperuserPrivilege",
     "CFunctionBaseException", "CFunctionNotFound",
     "workbench", "atfork", "sched_getcpu", "mount", "umount",
     "umount2", "unshare", "pivot_root", "adjust_namespaces",
@@ -194,7 +196,7 @@ class Workbench(object):
                     "file_instance": None,
                     "file_descriptor": None,
                     "path": None,
-                    "namespace_type": 0}
+                    "namespace": 0}
                 })
 
         exported_name = "syscall"
@@ -289,7 +291,7 @@ class Workbench(object):
 
     def _syscall_nr(self, syscall_name):
         func_obj = self.functions["syscall"]
-        if func_obj.extra.has_key(syscall_name):
+        if not func_obj.extra.has_key(syscall_name):
             raise CFunctionUnknowSyscall()
         NR = func_obj.extra[syscall_name]
         if isinstance(NR, dict):
@@ -508,9 +510,9 @@ class Workbench(object):
 
     def setns(self, **kwargs):
         """
-        workbench.setns(namespace, namespace_type)
+        workbench.setns(path=path2ns, namespace=namespace)
 
-        E.g., setns(pid=1234, "pid")
+        E.g., setns(pid=1234, namespace="pid")
         """
         keys = ["fd", "path", "pid", "file_obj"]
         wrong_keys = [k for k in keys if k in kwargs.keys()]
@@ -569,7 +571,7 @@ class Workbench(object):
 
         flags = c_int(_kwargs["namespace"])
         fd = c_int(_kwargs["fd"])
-        if self.setns is None:
+        if self.functions["setns"].func is None:
             NR_SETNS = self._syscall_nr("setns")
             return self._c_func_syscall(c_long(NR_SETNS), fd, flags)
         else:
@@ -687,6 +689,7 @@ class Workbench(object):
         for ns in namespaces:
             if ns == "mount": continue
             ns_obj = getattr(self.namespaces, ns)
+            if not ns_obj.available: continue
             entry = ns_obj.entry
             source = "%s/%s" % (path, entry)
             target="%s/%s" % (ns_bind_dir.rstrip("/"), entry)
@@ -791,13 +794,30 @@ class Workbench(object):
         return ns_obj.available
 
     def spawn_namespaces(self, namespaces=None, maproot=True, mountproc=True,
-                             mountpoint="/proc", ns_bind_dir=None, nscmd=None,
+                             mountpoint=None, ns_bind_dir=None, nscmd=None,
                              propagation=None, negative_namespaces=None,
                              setgroups=None, users_map=None,
                              groups_map=None):
         """
         workbench.spawn_namespace(namespaces=["pid", "net", "mount"])
         """
+        self.check_namespaces_available_status()
+        if not self.user_namespace_available():
+            maproot = False
+            users_map = None
+            group_map = None
+        if setgroups == "allow" and maproot:
+            maproot = False
+            users_map = None
+            group_map = None
+        if not self.pid_namespace_available():
+            mountproc = False
+            mountpoint = None
+        if mountproc and mountpoint is None:
+            mountpoint = '/proc'
+        if not self.mount_namespace_available():
+            propagation = None
+
         if setgroups == "allow" and maproot:
             raise NamespaceSettingError()
 
@@ -812,6 +832,20 @@ class Workbench(object):
                 unsupported_namespaces.append(ns)
         if unsupported_namespaces:
             raise UnavailableNamespaceFound(unsupported_namespaces)
+
+        require_root_privilege = False
+        if not user_namespace_available():
+            require_root_privilege = True
+        if namespaces and "user" not in namespaces:
+            require_root_privilege = True
+        if ns_bind_dir:
+            require_root_privilege = True
+        if users_map or groups_map:
+            require_root_privilege = True
+        if require_root_privilege:
+            euid = os.geteuid()
+            if euid != 0:
+                raise NamespaceRequireSuperuserPrivilege()
 
         if mountproc:
             if self.mount_namespace_available():

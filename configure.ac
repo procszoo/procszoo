@@ -1,6 +1,6 @@
 m4_define(PROCSZOO_VERSION, 0.95.3)
 AC_PREREQ(2.65)
-AC_INIT(procszoo, 0.95.3, https://github.com/xning/procszoo)
+AC_INIT(procszoo, PROCSZOO_VERSION, https://github.com/xning/procszoo)
 
 AC_CHECK_PROG(gcc)
 

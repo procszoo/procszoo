@@ -3,6 +3,7 @@
 import os
 import sys
 from optparse import OptionParser
+from traceback import print_stack
 
 cwd = os.path.abspath("%s/.." % os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("%s" % cwd)
@@ -64,23 +65,6 @@ implies -n user""")
                           dest="show_version")
 
     (options, args) = parser.parse_args()
-
-    if not user_namespace_available():
-        options.maproot = False
-        options.users_map = None
-        options.group_map = None
-    if options.setgroups == "allow" and options.maproot:
-        options.maproot = False
-        options.users_map = None
-        options.group_map = None
-    if not pid_namespace_available():
-        options.mountproc = False
-        options.mountpoint = None
-    if options.mountproc and options.mountpoint is None:
-        options.mountpoint = '/proc'
-    if not mount_namespace_available():
-        options.propagation = 'unchange'
-
     return options, args
 
 def check_if_need_root_privilege(options):
@@ -102,11 +86,14 @@ def check_if_need_root_privilege(options):
                 "You do not have permission, pls try again as root user\n")
             sys.exit(1)
 
-def show_namespaces_then_quit(options):
-    if options.show_ns_status:
-        for v in show_namespaces_status():
-            print "%-6s: %-5s" % v
-        sys.exit(0)
+def show_version_then_quit():
+    sys.stderr.write("version: %s\n" % __version__)
+    sys.exit(0)
+
+def show_namespaces_then_quit():
+    for v in show_namespaces_status():
+        print "%-6s: %-5s" % v
+    sys.exit(0)
 
 def main():
     check_namespaces_available_status()
@@ -115,23 +102,33 @@ def main():
     if args: nscmd=args
 
     if options.show_version:
-        sys.stderr.write("version: %s\n" % __version__)
+        show_version_then_quit()
+    if options.show_ns_status:
+        show_namespaces_then_quit()
+
+    try:
+        spawn_namespaces(
+            namespaces=options.namespaces,
+            negative_namespaces=options.negative_namespaces,
+            maproot=options.maproot,
+            mountproc=options.mountproc,
+            mountpoint=options.mountpoint,
+            ns_bind_dir=options.ns_bind_dir,
+            propagation=options.propagation,
+            nscmd=nscmd, users_map=options.users_map,
+            groups_map=options.groups_map,
+            setgroups=options.setgroups)
+    except UnavailableNamespaceFound, e:
+        print e
         sys.exit(1)
-
-    show_namespaces_then_quit(options)
-    check_if_need_root_privilege(options)
-
-    spawn_namespaces(
-        namespaces=options.namespaces,
-        negative_namespaces=options.negative_namespaces,
-        maproot=options.maproot,
-        mountproc=options.mountproc,
-        mountpoint=options.mountpoint,
-        ns_bind_dir=options.ns_bind_dir,
-        propagation=options.propagation,
-        nscmd=nscmd, users_map=options.users_map,
-        groups_map=options.groups_map,
-        setgroups=options.setgroups)
+    except NamespaceRequireSuperuserPrivilege, e:
+        print e
+        sys.exit(1)
+    except SystemExit:
+        sys.exit(0)
+    except:
+        print_stack()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
