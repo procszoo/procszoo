@@ -2,3 +2,6 @@ It's better to run ./configure first, or please remove
 procszoo/syscall_numbers.py file if the file exists.
 
 You need manually to run tests/test* scripts.
+
+If you are interested in how to use the procszoo module,
+the tests/* will show you more infos.
