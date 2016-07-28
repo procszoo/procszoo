@@ -13,10 +13,10 @@ def get_options():
     propagation_types = ["slave", "shared", "private", "unchange"]
     progname = os.path.basename(sys.argv[0]) or 'richard_parker'
     project_url = "http://github.com/xning/procszoo"
-    description="""A simple cli to create new namespaces env,
+    description = """A simple cli to create new namespaces env,
 default it will enable each available namespaces, and if a nemespace
 unavailable, it will disable options for the namespaces."""
-    epilog="%s is part of procszoo: %s"  % (progname, project_url)
+    epilog = "%s is part of procszoo: %s"  % (progname, project_url)
     parser = OptionParser(
         usage="Usage: %prog [options] cmd_run_in_namespaces",
         description=description,
@@ -99,7 +99,7 @@ def main():
     check_namespaces_available_status()
     options, args = get_options()
     nscmd = None
-    if args: nscmd=args
+    if args: nscmd = args
 
     if options.show_version:
         show_version_then_quit()

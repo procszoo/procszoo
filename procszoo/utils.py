@@ -178,20 +178,20 @@ class Workbench(object):
     def _init_c_functions(self):
         exported_name = "unshare"
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name,
+            exported_name=exported_name,
             argtypes=[c_int])
 
         exported_name = "sched_getcpu"
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name,
+            exported_name=exported_name,
             argtypes=None,
             failed=lambda res: res == -1)
 
         exported_name = "setns"
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name,
+            exported_name=exported_name,
             argtypes=[c_int, c_int],
-            extra = {
+            extra={
                 "default args": {
                     "file_instance": None,
                     "file_descriptor": None,
@@ -206,13 +206,13 @@ class Workbench(object):
             extra = {"setns": {'32bit': 346, '64bit': 308},
                          "pivot_root": {'32bit': 217, '64bit': 155}}
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name, extra=extra)
+            exported_name=exported_name, extra=extra)
 
         exported_name = "mount"
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name,
+            exported_name=exported_name,
             argtypes=[c_char_p, c_char_p, c_char_p, c_long, c_void_p],
-            extra = {
+            extra={
                 "default args": {
                     "source": None,
                     "target": None,
@@ -239,12 +239,12 @@ class Workbench(object):
 
         exported_name = "umount"
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name,
+            exported_name=exported_name,
             argtypes=[c_char_p])
 
         exported_name = "umount2"
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name,
+            exported_name=exported_name,
             argtypes=[c_char_p, c_int],
             extra = {
                 "flag": {
@@ -276,17 +276,17 @@ class Workbench(object):
 
         exported_name = "sethostname"
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name,
+            exported_name=exported_name,
             argtypes=[c_char_p, c_size_t])
 
         exported_name = "getdomainname"
         self.functions[exported_name] = CFunction(
-            exported_name = exported_name,
+            exported_name=exported_name,
             argtypes=[c_char_p, c_size_t])
 
         exported_name = "setdomainname"
         self.functions["setdomainname"] = CFunction(
-            exported_name = exported_name,
+            exported_name=exported_name,
             argtypes=[c_char_p, c_size_t])
 
     def _syscall_nr(self, syscall_name):
@@ -435,21 +435,22 @@ class Workbench(object):
         func_obj = self.functions["mount"]
 
         if source is None:
-            source=c_char_p()
+            source = "none"
         if target is None:
-            target=c_char_p()
+            target = c_char_p()
         if filesystemtype is None:
             filesystemtype = c_char_p()
         if mount_type is None:
             mount_type = "unchanged"
         if data is None:
-            data=c_void_p()
+            data = c_void_p()
 
         flag = func_obj.extra["flag"]
         propagation = func_obj.extra["propagation"]
         mount_flags = propagation[mount_type]
         mount_vals = [flag[k] for k in mount_flags]
         flags = reduce(lambda res, val: res | val, mount_vals, 0)
+
         self._c_func_mount(source, target, filesystemtype, flags, data)
 
     def _mount_proc(self, mountpoint="/proc"):
@@ -685,14 +686,14 @@ class Workbench(object):
         if not os.access(ns_bind_dir, os.R_OK | os.W_OK):
             raise RuntimeError("cannot access %s" % bind_ns_dir)
 
-        path="/proc/%d/ns" % pid
+        path = "/proc/%d/ns" % pid
         for ns in namespaces:
             if ns == "mount": continue
             ns_obj = getattr(self.namespaces, ns)
             if not ns_obj.available: continue
             entry = ns_obj.entry
             source = "%s/%s" % (path, entry)
-            target="%s/%s" % (ns_bind_dir.rstrip("/"), entry)
+            target = "%s/%s" % (ns_bind_dir.rstrip("/"), entry)
             if not os.path.exists(target):
                 os.close(os.open(target, os.O_CREAT | os.O_RDWR))
             self.mount(source=source, target=target, mount_type="bind")
