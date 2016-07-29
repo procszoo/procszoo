@@ -12,5 +12,9 @@ if __name__ == "__main__":
     euid = os.geteuid()
     if euid != 0:
         print "need superuser privilege, quit"
+        sys.exit(1)
+    nscmd = nscmd="%s/lib/procszoo/try_pivot_root.py" % cwd
+    if os.path.exists(nscmd):
+        workbench.spawn_namespaces(nscmd=nscmd)
     else:
-        workbench.spawn_namespaces(nscmd="./try_pivot_root.py")
+        print "'%s': such file does not exist" % nscmd

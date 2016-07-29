@@ -101,11 +101,10 @@ def _find_my_init(paths=None, name=None):
     if paths is None:
         cwd = os.path.dirname(os.path.abspath(__file__))
         absdir = os.path.abspath("%s/.." % cwd)
-        path = os.path.abspath("%s/../libexec" % cwd)
-        paths = ["%s/libexec" % absdir,
+        paths = ["%s/lib/procszoo" % absdir,
                  "%s/bin" % absdir,
-                 "/usr/local/libexec",
-                 "/usr/libexec"]
+                 "/usr/local/lib/procszoo",
+                 "/usr/lib/procszoo"]
 
     if name is None:
         name = "my_init"
@@ -737,7 +736,10 @@ class Workbench(object):
                 args = args + nscmd
             else:
                 args.append(nscmd)
-            os.execlp("python", *args)
+            if "pid" in namespaces:
+                os.execlp("python", *args)
+            else:
+                os.execlp(nscmd, (nscmd))
             sys.exit(0)
         else:
             os.close(w3)
