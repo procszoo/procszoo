@@ -34,7 +34,8 @@ if __name__ == "__main__":
 
     os.system("rm -f ./rootfs.gz;cp %s ./rootfs.gz" % path)
     print "copying %s done, let's decompress it" % path
-    os.system("gzip -c -d ./rootfs.gz | cpio -id 2>/dev/null")
+    cmd = "cpio -i -d -H newc --no-absolute-filenames"
+    os.system("gzip -c -d ./rootfs.gz | %s" % cmd)
     print "let's try pivot_root"
     if not os.path.exists(put_old):
         os.mkdir(put_old)
