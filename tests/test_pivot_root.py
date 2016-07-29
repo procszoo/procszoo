@@ -9,4 +9,8 @@ sys.path.append("%s" % cwd)
 from procszoo.utils import workbench
 
 if __name__ == "__main__":
-    workbench.spawn_namespaces(nscmd="./try_pivot_root.py")
+    euid = os.geteuid()
+    if euid != 0:
+        print "need superuser privilege, quit"
+    else:
+        workbench.spawn_namespaces(nscmd="./try_pivot_root.py")
