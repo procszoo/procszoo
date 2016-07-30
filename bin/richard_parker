@@ -16,11 +16,14 @@ def get_options():
     description = """A simple cli to create new namespaces env,
 default it will enable each available namespaces, and if a nemespace
 unavailable, it will disable options for the namespaces."""
-    epilog = "%s is part of procszoo: %s"  % (progname, project_url)
+    epilog_str = "%s is part of procszoo: %s"  % (progname, project_url)
     parser = OptionParser(
-        usage="Usage: %prog [options] cmd_run_in_namespaces",
-        description=description,
-        epilog=epilog)
+        usage="Usage: %prog [options] cmd_run_in_namespaces")
+    parser.__dict__['origin_format_help'] = parser.format_help
+    parser.__dict__['format_help'] = lambda formatter=None: (
+                "%(origin_format_help)s\n%(epilog)s\n" % ({
+        'origin_format_help': parser.origin_format_help(formatter),
+        'epilog': epilog_str}))
     parser.add_option("-n", "--namespace", action="append", dest="namespaces",
                         help="namespace that should be create")
     parser.add_option("-N", "--negative-namespace", action="append",

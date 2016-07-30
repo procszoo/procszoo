@@ -31,27 +31,32 @@ kernel. We support RHEL 6/CentOS 6.
 ## Try It
 ---------
 
-Procszoo only requires Python standard libraries, On x86 and x86_64 archs,
-all you need are to clone it and do as follows, then you will get
-an interactve shell.
+Procszoo only requires Python standard libraries and the following packages
+
+    # on RHEL/CentOS >= 6
+    sudo yum -y install autoconf gcc make glibc-headers
+    # Debain/Ubuntu
+    sudo apt-get -y install autoconf gcc make libc6-dev
+
+For RHEL5 and CentOS 5, we need install more packages
+
+    # on old Fedora/RHEL5/CentOS5
+    sudo yum -y install python-json python-ctypes
+
+All you need are to clone it and do as follows, then you will get an interactve
+shell.
 
     git clone https://github.com/xning/procszoo.git
-    cd procszoo/bin
+    cd procszoo && make clean && make
+    cd bin
     ./richard_parker -l
     ./richard_parker
 
 If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6,
 you need run the *richard_parker* as *super user*
 
-    cd procszoo/bin
     ./richard_parker -l
     sudo ./richard_parker
-
-If your Linux workstation isn't a x86/x86_64 arch, after clone the code,
-you need run *configure*:
-
-     cd procszoo
-     ./configure
 
 And now, you can check sth that we are in namespaces
 

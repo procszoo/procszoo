@@ -8,7 +8,10 @@ from procszoo.utils import workbench
 
 if __name__ == "__main__":
     def procinfo(str):
-        cpu_idx = workbench.sched_getcpu()
+        if "sched_getcpu" not in workbench.show_available_c_functions():
+            cpu_idx = -1
+        else:
+            cpu_idx = workbench.sched_getcpu()
         pid = os.getpid()
         ppid = os.getppid()
         uid = os.getuid()

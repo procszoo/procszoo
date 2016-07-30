@@ -8,6 +8,9 @@ sys.path.append("%s" % cwd)
 from procszoo.utils import workbench
 
 if __name__ == "__main__":
+    if "setns" not in workbench.show_available_c_functions():
+        print "setns func unavailable, quit"
+        sys.exit(1)
     ns_bind_dir = "/tmp/ns"
     workbench.spawn_namespaces(ns_bind_dir=ns_bind_dir, nscmd="./exit_immediately")
     pid = os.fork()

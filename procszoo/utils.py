@@ -5,18 +5,43 @@ import os
 import sys
 import atexit
 import re
-import struct
 from ctypes import (cdll, c_int, c_long, c_char_p, c_size_t, string_at,
                     create_string_buffer, c_void_p, CFUNCTYPE, pythonapi)
+try:
+    import pyroute2
+except ImportError:
+    _pyroute2_module_available = False
+else:
+    _pyroute2_module_available = True
+
+if _pyroute2_module_available:
+    try:
+        pyroute2.NetNS
+    except AttributeError:
+        _pyroute2_netns_available = False
+    else:
+        _pyroute2_netns_available = True
+else:
+    _pyroute2_netns_available = False
+
 import pickle
 from copy import copy
 import json
 from namespaces import *
+
 try:
-    _syscall_nr_probed = True
-    from procszoo.syscall_numbers import NR_SETNS, NR_PIVOT_ROOT
+    from procszoo.syscall_pivot_root_number import NR_PIVOT_ROOT
 except ImportError:
-    _syscall_nr_probed = False
+    _syscall_nr_pivot_root = False
+else:
+    _syscall_nr_pivot_root = True
+
+try:
+    from procszoo.syscall_setns_number import NR_SETNS
+except ImportError:
+    _syscall_nr_setns = False
+else:
+    _syscall_nr_setns = True
 
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
@@ -35,7 +60,8 @@ __all__ = [
     "umount2", "unshare", "pivot_root", "adjust_namespaces",
     "setns", "spawn_namespaces", "check_namespaces_available_status",
     "show_namespaces_status", "gethostname", "sethostname",
-    "getdomainname", "setdomainname", "__version__",]
+    "getdomainname", "setdomainname", "show_available_c_functions",
+    "__version__",]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
@@ -169,8 +195,8 @@ class Workbench(object):
 
     def __init__(self):
         self.functions = {}
+        self.available_c_functions = []
         self.namespaces = Namespaces()
-        self._64bit = struct.calcsize('P') * 8 == 64
         self._init_c_functions()
         self._namespaces_available_status_checked = False
 
@@ -199,11 +225,12 @@ class Workbench(object):
                 })
 
         exported_name = "syscall"
-        if _syscall_nr_probed:
-            extra = {"setns": NR_SETNS, "pivot_root": NR_PIVOT_ROOT,}
-        else:
-            extra = {"setns": {'32bit': 346, '64bit': 308},
-                         "pivot_root": {'32bit': 217, '64bit': 155}}
+        extra = {}
+        if _syscall_nr_pivot_root:
+            extra["pivot_root"] = NR_PIVOT_ROOT
+        if _syscall_nr_setns:
+            extra["setns"] = NR_SETNS
+
         self.functions[exported_name] = CFunction(
             exported_name=exported_name, extra=extra)
 
@@ -288,23 +315,38 @@ class Workbench(object):
             exported_name=exported_name,
             argtypes=[c_char_p, c_size_t])
 
+        for func_name, func_obj in self.functions.iteritems():
+            if func_obj.func:
+                self.available_c_functions.append(func_name)
+            else:
+                try:
+                    self._syscall_nr(func_name)
+                except CFunctionUnknowSyscall, e:
+                    pass
+                else:
+                    self.available_c_functions.append(func_name)
+        func_name = "pivot_root"
+        if func_name not in self.available_c_functions:
+            try:
+                self._syscall_nr(func_name)
+            except CFunctionUnknowSyscall, e:
+                pass
+            else:
+                self.available_c_functions.append(func_name)
+        self.available_c_functions.sort()
+
     def _syscall_nr(self, syscall_name):
         func_obj = self.functions["syscall"]
-        if not func_obj.extra.has_key(syscall_name):
-            raise CFunctionUnknowSyscall()
-        NR = func_obj.extra[syscall_name]
-        if isinstance(NR, dict):
-            if self._64bit:
-                return NR["64bit"]
-            else:
-                return NR["32bit"]
+        if func_obj.extra.has_key(syscall_name):
+            return func_obj.extra[syscall_name]
         else:
-            return NR
+            raise CFunctionUnknowSyscall()
+
 
     def __getattr__(self, name):
         if name.startswith("_c_func_"):
             c_func_name = name.replace("_c_func_", "")
-            if c_func_name not in self.functions.keys():
+            if c_func_name not in self.available_c_functions:
                 raise CFunctionNotFound(c_func_name)
             func_obj = self.functions[c_func_name]
             c_func = func_obj.func
@@ -401,6 +443,9 @@ class Workbench(object):
                     ns_obj.available = False
 
             self._namespaces_available_status_checked = True
+
+    def show_available_c_functions(self):
+        return self.available_c_functions
 
     def sched_getcpu(self):
         return self._c_func_sched_getcpu()
@@ -1009,6 +1054,9 @@ def check_namespaces_available_status():
 
 def show_namespaces_status():
     return workbench.show_namespaces_status()
+
+def show_available_c_functions():
+    return workbench.show_available_c_functions()
 
 if __name__ == "__main__":
     spawn_namespaces()
