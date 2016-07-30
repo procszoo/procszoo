@@ -43,8 +43,8 @@ For RHEL5 and CentOS 5, we need install more packages
     # on old Fedora/RHEL5/CentOS5
     sudo yum -y install python-json python-ctypes
 
-All you need are to clone it and do as follows, then you will get an interactve
-shell.
+After that, all you need are to clone it and do as follows, then you will
+get an interactve shell.
 
     git clone https://github.com/xning/procszoo.git
     cd procszoo && make clean && make
@@ -228,6 +228,7 @@ think that you need learn them all
     - pivot\_root
     - adjust\_namespaces
     - show\_namespaces\_status
+    - show\_available\_c\_functions
     - cgroup\_namespace\_available
     - ipc\_namespace\_available
     - net\_namespace\_available
@@ -246,10 +247,11 @@ think that you need learn them all
 
 ## Test Platforms
 ----------------
-The *richard_parker* runs well on following OSs (x32 and x86\_64)
+I test the *richard_parker* on following OSs (x32 and x86\_64)
 
-- CentOS 7
+- CentOS 5
 - CentOS 6
+- CentOS 7
 - Fedora 24
 - Ubuntu 16.04
 - Ubuntu 14.04
