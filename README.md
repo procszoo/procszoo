@@ -50,7 +50,7 @@ After that, all you need are to clone it and do as follows,
     cd bin
     # what namsepaces are available?
     ./richard_parker -l
-    # waht C functions are available?
+    # what C functions are available?
     ./richard_parker --available-c-functions
     # get an interactive shell
     ./richard_parker
@@ -250,7 +250,7 @@ think that you need learn them all
 
 ## Test Platforms
 ----------------
-I test the *richard_parker* and these *tests/test-\** scripts on following
+I test the *richard_parker* and these scripts in *tests/* on following
 archs
 
 - CentOS 5(x86)
