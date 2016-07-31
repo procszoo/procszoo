@@ -46,7 +46,7 @@ else:
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
-__version__ = '0.95.3'
+__version__ = '0.97.0'
 __all__ = [
     "cgroup_namespace_available", "ipc_namespace_available",
     "net_namespace_available", "mount_namespace_available",

@@ -12,7 +12,8 @@ if __name__ == "__main__":
         print "setns func unavailable, quit"
         sys.exit(1)
     ns_bind_dir = "/tmp/ns"
-    workbench.spawn_namespaces(ns_bind_dir=ns_bind_dir, nscmd="./exit_immediately")
+    nscmd="%s/lib/procszoo/exit_immediately" % cwd
+    workbench.spawn_namespaces(ns_bind_dir=ns_bind_dir, nscmd=nscmd)
     pid = os.fork()
     if pid == -1:
         raise RuntimeError("failed to do a fork")

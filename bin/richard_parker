@@ -66,28 +66,13 @@ implies -n user""")
                           help="list namespaces status")
     parser.add_option("-v", "--version", action="store_true", default=False,
                           dest="show_version")
+    parser.add_option("--available-c-functions", action="store_true",
+                        dest="show_available_c_functions",
+                        help="show available C functions",
+                        default=False)
 
     (options, args) = parser.parse_args()
     return options, args
-
-def check_if_need_root_privilege(options):
-    require_root_privilege = False
-    if not user_namespace_available():
-        require_root_privilege = True
-    if options.namespaces and "user" not in options.namespaces:
-        require_root_privilege = True
-    if options.negative_namespaces and "user" in options.negative_namespaces:
-        require_root_privilege = True
-    if options.ns_bind_dir:
-        require_root_privilege = True
-    if options.users_map or options.groups_map:
-        require_root_privilege = True
-    if require_root_privilege:
-        euid = os.geteuid()
-        if euid != 0:
-            sys.stderr.write(
-                "You do not have permission, pls try again as root user\n")
-            sys.exit(1)
 
 def show_version_then_quit():
     sys.stderr.write("version: %s\n" % __version__)
@@ -96,6 +81,10 @@ def show_version_then_quit():
 def show_namespaces_then_quit():
     for v in show_namespaces_status():
         print "%-6s: %-5s" % v
+    sys.exit(0)
+
+def show_available_c_functions_and_quit():
+    print "%s" % "\n".join(workbench.show_available_c_functions())
     sys.exit(0)
 
 def main():
@@ -108,6 +97,8 @@ def main():
         show_version_then_quit()
     if options.show_ns_status:
         show_namespaces_then_quit()
+    if options.show_available_c_functions:
+        show_available_c_functions_and_quit()
 
     try:
         spawn_namespaces(

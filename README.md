@@ -43,19 +43,21 @@ For RHEL5 and CentOS 5, we need install more packages
     # on old Fedora/RHEL5/CentOS5
     sudo yum -y install python-json python-ctypes
 
-After that, all you need are to clone it and do as follows, then you will
-get an interactve shell.
+After that, all you need are to clone it and do as follows,
 
     git clone https://github.com/xning/procszoo.git
     cd procszoo && make clean && make
     cd bin
+    # what namsepaces are available?
     ./richard_parker -l
+    # waht C functions are available?
+    ./richard_parker --available-c-functions
+    # get an interactive shell
     ./richard_parker
 
 If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6,
 you need run the *richard_parker* as *super user*
 
-    ./richard_parker -l
     sudo ./richard_parker
 
 And now, you can check sth that we are in namespaces
@@ -77,6 +79,7 @@ from our namespaces
 
 * if you have trouble to try the above steps, please reference
 [Known Issues](#known-issues).
+
 
 ## Getting Your Feet Wet with the *procszoo* module
 ---------------------------------------------------
@@ -247,11 +250,14 @@ think that you need learn them all
 
 ## Test Platforms
 ----------------
-I test the *richard_parker* on following OSs (x32 and x86\_64)
+I test the *richard_parker* and these *tests/test-\** scripts on following
+archs
 
-- CentOS 5
-- CentOS 6
-- CentOS 7
-- Fedora 24
-- Ubuntu 16.04
-- Ubuntu 14.04
+- CentOS 5(x86)
+- CentOS 6(x86\_64)
+- CentOS 7(x86\_64)
+- Fedora 24(x86\_64)
+- ubuntu 12.04(armv7l)
+- Ubuntu 14.04(x86\_64)
+- Ubuntu 16.04(x86\_64)
+
