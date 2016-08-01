@@ -14,11 +14,11 @@ def get_options():
     progname = os.path.basename(sys.argv[0]) or 'richard_parker'
     project_url = "http://github.com/xning/procszoo"
     description = """A simple cli to create new namespaces env,
-default it will enable each available namespaces, and if a nemespace
-unavailable, it will disable options for the namespaces."""
+default it will enable each available namespaces."""
     epilog_str = "%s is part of procszoo: %s"  % (progname, project_url)
     parser = OptionParser(
-        usage="Usage: %prog [options] cmd_run_in_namespaces")
+        usage="Usage: %prog [options] cmd_run_in_namespaces",
+        description=description)
     parser.__dict__['origin_format_help'] = parser.format_help
     parser.__dict__['format_help'] = lambda formatter=None: (
                 "%(origin_format_help)s\n%(epilog)s\n" % ({
@@ -45,7 +45,8 @@ implies -n user""")
         "-s", "--setgroups", action="store", type="string",
         dest="setgroups",
         help="""control the setgroups syscall in user namespaces,
-        when setting to 'allow' will enable --no-maproot option""")
+        when setting to 'allow' will enable --no-maproot option and avoid --user-map
+        and --group-map options""")
     parser.add_option("--mountproc", action="store_true", dest="mountproc",
                         help="remount procfs mountpoin, implies --n mount",
                       default=True)
