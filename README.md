@@ -5,6 +5,7 @@ Procszoo is a small Python module that gives you full
 power to manage your processes by Linux namespaces.
 
 ## Contents
+- [wiki](https://github.com/xning/procszoo/wiki)
 - [Goals](#goals)
 - [Try It](#try-it)
 - [Getting Your Feet Wet with the *procszoo* Module](#getting-your-feet-wet-with-the-procszoo-module)

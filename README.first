@@ -5,3 +5,5 @@ You need manually to run tests/test* scripts.
 
 If you are interested in how to use the procszoo module,
 the tests/* will show you more infos.
+
+For more examples, please reference https://github.com/xning/procszoo/wiki
