@@ -5,7 +5,7 @@ import sys
 from optparse import OptionParser
 from traceback import print_stack
 
-cwd = "%s/.." % os.path.dirname(os.path.abspath(__file__))
+cwd = os.path.abspath("%s/.." % os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("%s" % cwd)
 from procszoo.utils import *
 

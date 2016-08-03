@@ -2,7 +2,7 @@
 import os
 import sys
 
-cwd = "%s/../.." % os.path.dirname(os.path.abspath(__file__))
+cwd = os.path.abspath("%s/../.." % os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("%s" % cwd)
 from procszoo.utils import workbench
 
