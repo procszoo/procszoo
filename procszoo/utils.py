@@ -123,7 +123,7 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
         map_str = "%s\n" % "\n".join(maps)
         _map_id("gid_map", map_str, pid)
 
-def _find_my_init(paths=None, name=None):
+def _find_my_init(paths=None, name=None, file_mode=None, dir_mode=None):
     if paths is None:
         cwd = os.path.dirname(os.path.abspath(__file__))
         absdir = os.path.abspath("%s/.." % cwd)
@@ -135,10 +135,47 @@ def _find_my_init(paths=None, name=None):
     if name is None:
         name = "my_init"
 
+    if file_mode is None:
+        file_mode = os.R_OK
+    if dir_mode is None:
+        dir_mode = os.R_OK
+
     for path in paths:
         my_init = "%s/%s" % (path, name)
         if os.path.exists(my_init):
-            return my_init
+            if os.access(my_init, file_mode):
+                return my_init
+
+    dirs_access_refused = []
+    files_access_refused = []
+    for path in paths:
+        my_init = "%s/%s" % (path, name)
+        dirs = my_init.split('/')
+        tmp_path = '/'
+        for path_name in dirs:
+            if not path_name: continue
+            tmp_path = os.path.join(tmp_path, path_name)
+            if tmp_path in dirs_access_refused: break
+            if tmp_path in files_access_refused: break
+            if os.path.exists(tmp_path):
+                if os.path.isdir(tmp_path):
+                    if not os.access(tmp_path, dir_mode):
+                        dirs_access_refused.append(tmp_path)
+                        break
+                elif os.path.isfile(tmp_path):
+                    if not os.access(tmp_path, file_mode):
+                        files_access_refused.append(tmp_path)
+                        break
+
+    if dirs_access_refused or files_access_refused:
+        if len(dirs_access_refused) + len(files_access_refused) > 1:
+            err_str = "[%s]" % "\n".join(
+                dirs_access_refused + files_access_refused)
+        else:
+            err_str = "'%s'" % " ".join(
+                dirs_access_refused + files_access_refused)
+        raise IOError("Permission denied: %s" % err_str)
+
     raise NamespaceSettingError()
 
 def _find_shell(name="bash", shell=None):
@@ -772,7 +809,15 @@ class Workbench(object):
             if ord(os.read(r4, 1)) != _ACLCHAR:
                 raise "sync failed"
             os.close(r4)
-            my_init = _find_my_init()
+            try:
+                my_init = _find_my_init()
+            except IOError, e:
+                print(e)
+                sys.exit(1)
+            except NamespaceSettingError, e:
+                print e
+                sys.exit(1)
+
             if nscmd is None:
                 nscmd = _find_shell()
             args = ["-c", my_init, "--skip-startup-files",

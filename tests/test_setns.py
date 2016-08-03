@@ -3,8 +3,8 @@ import os
 import sys
 import random
 
-cwd = os.path.abspath("%s/.." % os.path.dirname(os.path.abspath(__file__)))
-sys.path.append("%s" % cwd)
+procszoo_mod_dir = os.path.abspath("%s/.." % os.path.dirname(__file__))
+sys.path.append(procszoo_mod_dir)
 from procszoo.utils import workbench
 
 if __name__ == "__main__":
@@ -12,7 +12,7 @@ if __name__ == "__main__":
         print "setns func unavailable, quit"
         sys.exit(1)
     ns_bind_dir = "/tmp/ns"
-    nscmd="%s/lib/procszoo/exit_immediately" % cwd
+    nscmd="%s/lib/procszoo/exit_immediately" % procszoo_mod_dir
     workbench.spawn_namespaces(ns_bind_dir=ns_bind_dir, nscmd=nscmd)
     pid = os.fork()
     if pid == -1:
