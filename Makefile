@@ -1,9 +1,15 @@
+ifeq ("$(origin V)", "command line")
+    Q=
+else
+    Q=@
+endif
 all: configure
-	./configure
+	$(Q)./configure
+
 configure: configure.ac
-	[ -e configure ] && autoreconf || autoconf
+	$(Q)[ -e configure ] && autoreconf || autoconf
 clean:
-	rm -f configure procszoo/syscall_*.py
-	find . -name "*.pyc" | xargs rm -f
-	find . -name "*~" | xargs rm -f	
-	rm -rf autom4te.cache config.log config.status
+	$(Q)rm -f configure procszoo/syscall_*.py
+	$(Q)find . -name "*.pyc" | xargs rm -f
+	$(Q)find . -name "*~" | xargs rm -f
+	$(Q)rm -rf autom4te.cache config.log config.status
