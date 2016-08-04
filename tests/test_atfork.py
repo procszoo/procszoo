@@ -2,8 +2,7 @@
 
 import os
 import sys
-
-procszoo_mod_dir = os.path.abspath("%s/.." % os.path.dirname(__file__))
+procszoo_mod_dir = os.path.abspath("..")
 sys.path.append(procszoo_mod_dir)
 from procszoo.utils import workbench
 
@@ -43,7 +42,7 @@ if __name__ == "__main__":
     if pid == -1:
         raise RuntimeError("do fork failed")
     elif pid == 0:
-        print "child"
+        print("child")
     elif pid > 0:
         os.waitpid(pid, 0)
-        print "parent"
+        print("parent")

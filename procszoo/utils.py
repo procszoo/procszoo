@@ -27,7 +27,8 @@ else:
 import pickle
 from copy import copy
 import json
-from namespaces import *
+
+from .namespaces import *
 
 try:
     from procszoo.syscall_pivot_root_number import NR_PIVOT_ROOT
@@ -70,6 +71,36 @@ _FORK_HANDLER_PROTOTYPE = CFUNCTYPE(None)
 _NULL_HANDLER_POINTER = _FORK_HANDLER_PROTOTYPE()
 _MAX_USERS_MAP = 5
 _MAX_GROUPS_MAP = 5
+_PREPARE_FORKHANDLERS = []
+_PARENT_FORKHANDLERS = []
+_CHILD_FORKHANDLERS = []
+
+def _register_fork_handler(handler, handlers=None):
+    if handler is None:
+        return
+    if handlers is None:
+        _PREPARE_FORKHANDLERS.append(handler)
+        _PARENT_FORKHANDLERS.append(handlers)
+        _CHILD_FORKHANDLERS.append(handler)
+    else:
+        handlers.append(handler)
+
+
+def _register_prepare_fork_handler(handler):
+    _register_fork_handler(handler, _PREPARE_FORKHANDLERS)
+
+
+def _register_parent_fork_handler(handler):
+    _register_fork_handler(handler, _PARENT_FORKHANDLERS)
+
+
+def _register_child_fork_handler(handler):
+    _register_fork_handler(handler, _CHILD_FORKHANDLERS)
+
+def _handler_registered_exist():
+    return (_PREPARE_FORKHANDLERS
+                or _PARENT_FORKHANDLERS
+                or _CHILD_FORKHANDLERS)
 
 def _fork():
     pid = os.fork()
@@ -181,13 +212,19 @@ def _find_my_init(paths=None, name=None, file_mode=None, dir_mode=None):
 def _find_shell(name="bash", shell=None):
     if shell is not None:
         return shell
-    if os.environ.has_key("SHELL"):
+    if "SHELL" in os.environ:
         return os.environ.get("SHELL")
     for path in ["/bin", "/usr/bin", "/usr/loca/bin"]:
         fpath = "%s/%s" % (path, name)
         if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
             return fpath
     return "sh"
+
+def is_string_or_unicode(obj):
+    if sys.version_info > (3, 0):
+        return isinstance(obj, str)
+    else:
+        return isinstance(obj, basestring)
 
 class CFunction(object):
     """
@@ -203,7 +240,7 @@ class CFunction(object):
         self.func = func
         self.exported_name = exported_name
 
-        if isinstance(possible_c_func_names, basestring):
+        if is_string_or_unicode(possible_c_func_names):
             self.possible_c_func_names = [possible_c_func_names]
         elif isinstance(possible_c_func_names, list):
             self.possible_c_func_names = possible_c_func_names
@@ -223,12 +260,12 @@ class Workbench(object):
     """
     class used as a singleton.
     """
-    _FORKHANDLERS = []
-
-    @classmethod
-    def _register_fork_handler(cls, handler):
-        if handler not in cls._FORKHANDLERS:
-            cls._FORKHANDLERS.append(handler)
+    _prepare_caller = _FORK_HANDLER_PROTOTYPE(
+        lambda: [hdr() for hdr in _PREPARE_FORKHANDLERS if hdr])
+    _parent_caller = _FORK_HANDLER_PROTOTYPE(
+        lambda: [hdr()for hdr in _PARENT_FORKHANDLERS if hdr])
+    _child_caller = _FORK_HANDLER_PROTOTYPE(
+        lambda: [hdr() for hdr in _CHILD_FORKHANDLERS if hdr])
 
     def __init__(self):
         self.functions = {}
@@ -329,8 +366,8 @@ class Workbench(object):
                 _FORK_HANDLER_PROTOTYPE,
                 _FORK_HANDLER_PROTOTYPE,
                 _FORK_HANDLER_PROTOTYPE],
-            failed=lambda res: res == -1)
-        self._register_fork_handler(_NULL_HANDLER_POINTER)
+            failed=lambda res: res == -1,
+            extra={"initlized": False})
 
         exported_name = "gethostname"
         self.functions[exported_name] = CFunction(
@@ -352,13 +389,14 @@ class Workbench(object):
             exported_name=exported_name,
             argtypes=[c_char_p, c_size_t])
 
-        for func_name, func_obj in self.functions.iteritems():
+        for func_name in self.functions:
+            func_obj = self.functions[func_name]
             if func_obj.func:
                 self.available_c_functions.append(func_name)
             else:
                 try:
                     self._syscall_nr(func_name)
-                except CFunctionUnknowSyscall, e:
+                except CFunctionUnknowSyscall as e:
                     pass
                 else:
                     self.available_c_functions.append(func_name)
@@ -366,7 +404,7 @@ class Workbench(object):
         if func_name not in self.available_c_functions:
             try:
                 self._syscall_nr(func_name)
-            except CFunctionUnknowSyscall, e:
+            except CFunctionUnknowSyscall as e:
                 pass
             else:
                 self.available_c_functions.append(func_name)
@@ -374,7 +412,7 @@ class Workbench(object):
 
     def _syscall_nr(self, syscall_name):
         func_obj = self.functions["syscall"]
-        if func_obj.extra.has_key(syscall_name):
+        if syscall_name in func_obj.extra:
             return func_obj.extra[syscall_name]
         else:
             raise CFunctionUnknowSyscall()
@@ -413,23 +451,20 @@ class Workbench(object):
                 ...
         """
         hdr_prototype = _FORK_HANDLER_PROTOTYPE
-        if prepare is None:
-            prepare = _NULL_HANDLER_POINTER
-        else:
-            prepare = _FORK_HANDLER_PROTOTYPE(prepare)
-        if parent is None:
-            parent = _NULL_HANDLER_POINTER
-        else:
-            parent = _FORK_HANDLER_PROTOTYPE(parent)
-        if child is None:
-            child = _NULL_HANDLER_POINTER
-        else:
-            child = _FORK_HANDLER_PROTOTYPE(child)
+        _register_prepare_fork_handler(prepare)
+        _register_parent_fork_handler(parent)
+        _register_child_fork_handler(child)
 
-        for hdr in prepare, parent, child:
-            self._register_fork_handler(hdr)
+        cfunc = self.functions["atfork"]
+        if cfunc.extra["initlized"]:
+            return
 
-        return self._c_func_atfork(prepare, parent, child)
+        if _handler_registered_exist():
+            ret = self._c_func_atfork(self._prepare_caller,
+                                      self._parent_caller,
+                                      self._child_caller)
+
+            cfunc.extra["initlized"] = True
 
     def check_namespaces_available_status(self):
         """
@@ -542,7 +577,7 @@ class Workbench(object):
     def umount(self, mountpoint=None):
         if mountpoint is None:
             return
-        if not isinstance(mountpoint, basestring):
+        if not is_string_or_unicode(mountpoint):
             raise RuntimeError("mountpoint should be a path to a mount point")
         if not os.path.exists(mountpoint):
             raise RuntimeError("mount point '%s': cannot found")
@@ -604,7 +639,7 @@ class Workbench(object):
 
         _kwargs = copy(kwargs)
         namespace = 0
-        if  kwargs.has_key("namespace"):
+        if  "namespace" in kwargs:
             ns = kwargs["namespace"]
             if isinstance(ns, basestring) and ns in self.namespaces.namespaces:
                 namespace = getattr(self.namespaces, ns)
@@ -613,14 +648,14 @@ class Workbench(object):
 
         _kwargs["namespace"] = namespace.value
 
-        if kwargs.has_key("fd"):
+        if "fd" in kwargs:
             fd = kwargs["fd"]
             if not (isinstance(fd, int) or isinstance(fd, long)):
                 raise TypeError("unavailable file descriptor found")
-        elif kwargs.has_key("path"):
+        elif "path" in kwargs:
             path = os.path.abspath(kwargs["path"])
             entry = os.path.basename(path)
-            if kwargs.has_key("namespace"):
+            if "namespace" in kwargs:
                 ns = kwargs["namespace"]
                 ns_obj = getattr(self.namespaces, ns)
                 ns_obj_entry = ns_obj.entry
@@ -633,7 +668,7 @@ class Workbench(object):
             _kwargs["file_obj"] = file_obj
             _kwargs["fd"] = file_obj.fileno()
             _kwargs["path"] = path
-        elif kwargs.has_key("pid"):
+        elif "pid" in kwargs:
             pid = kwargs["pid"]
             if namespace == 0:
                 raise TypeError("pid named argument need a namespace")
@@ -647,7 +682,7 @@ class Workbench(object):
                 file_obj = open(path, 'r')
                 _kwargs["file_obj"] = file_obj
                 _kwargs["fd"] = file_obj.fileno()
-        elif kwargs.has_key("file_obj"):
+        elif "file_obj" in kwargs:
             file_obj = kwargs["file_obj"]
             _kwargs["fd"] = file_obj.fileno()
 
@@ -811,11 +846,11 @@ class Workbench(object):
             os.close(r4)
             try:
                 my_init = _find_my_init()
-            except IOError, e:
+            except IOError as e:
                 print(e)
                 sys.exit(1)
-            except NamespaceSettingError, e:
-                print e
+            except NamespaceSettingError as e:
+                print(e)
                 sys.exit(1)
 
             if nscmd is None:
