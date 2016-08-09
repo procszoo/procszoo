@@ -119,6 +119,10 @@ class Namespaces(object):
             ns_name = name.replace("_namespace_available", "")
             ns = getattr(self, ns_name)
             return ns.available
+        elif name.startswith("get_") and name.endswith("_namespace"):
+            ns_name = name.replace("get_", "")
+            ns_name = ns_name.replace("_namespace")
+            return getattr(self, ns_name)
         else:
             raise AttributeError("'Namespaces' object has no attribute '%s'"
                                      % name)

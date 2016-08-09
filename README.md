@@ -39,11 +39,6 @@ Procszoo only requires Python standard libraries and the following packages
     # Debain/Ubuntu
     sudo apt-get -y install autoconf gcc make libc6-dev
 
-For RHEL5 and CentOS 5, we need install more packages
-
-    # on old Fedora/RHEL5/CentOS5
-    sudo yum -y install python-json python-ctypes
-
 After that, all you need are to clone it and do as follows,
 
     git clone https://github.com/xning/procszoo.git
@@ -231,6 +226,7 @@ think that you need learn them all
     - setdomainname
     - pivot\_root
     - adjust\_namespaces
+    - get_namespace
     - show\_namespaces\_status
     - show\_available\_c\_functions
     - cgroup\_namespace\_available
@@ -240,6 +236,7 @@ think that you need learn them all
     - pid\_namespace\_available
     - user\_namespace\_available
     - uts\_namespace\_available
+    - unregister\_fork\_handlers
 
 * Exceptions
     - CFunctionBaseException
@@ -254,7 +251,6 @@ think that you need learn them all
 I test the *richard_parker* and these scripts in *tests/* on following
 archs
 
-- CentOS 5(x86)
 - CentOS 6(x86\_64)
 - CentOS 7(x86\_64)
 - Fedora 24(x86\_64)

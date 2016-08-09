@@ -1,4 +1,4 @@
-m4_define(PROCSZOO_VERSION, 0.95.3)
+m4_define(PROCSZOO_VERSION, 0.97.1)
 AC_INIT(procszoo, PROCSZOO_VERSION, https://github.com/xning/procszoo)
 
 m4_ifdef([AC_COMPUTE_INT], [], [

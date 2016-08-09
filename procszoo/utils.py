@@ -47,7 +47,7 @@ else:
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
-__version__ = '0.97.0'
+__version__ = '0.97.1'
 __all__ = [
     "cgroup_namespace_available", "ipc_namespace_available",
     "net_namespace_available", "mount_namespace_available",
@@ -62,7 +62,7 @@ __all__ = [
     "setns", "spawn_namespaces", "check_namespaces_available_status",
     "show_namespaces_status", "gethostname", "sethostname",
     "getdomainname", "setdomainname", "show_available_c_functions",
-    "__version__",]
+    "get_namespace", "unregister_fork_handlers", "__version__",]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
@@ -75,32 +75,42 @@ _PREPARE_FORKHANDLERS = []
 _PARENT_FORKHANDLERS = []
 _CHILD_FORKHANDLERS = []
 
-def _register_fork_handler(handler, handlers=None):
-    if handler is None:
-        return
-    if handlers is None:
-        _PREPARE_FORKHANDLERS.append(handler)
-        _PARENT_FORKHANDLERS.append(handlers)
-        _CHILD_FORKHANDLERS.append(handler)
-    else:
-        handlers.append(handler)
-
+def _register_fork_handlers(prepare=None, parent=None, child=None):
+    if prepare is not None:
+        _PREPARE_FORKHANDLERS.append(prepare)
+    if parent is not None:
+        _PARENT_FORKHANDLERS.append(parent)
+    if child is not None:
+        _CHILD_FORKHANDLERS.append(child)
 
 def _register_prepare_fork_handler(handler):
-    _register_fork_handler(handler, _PREPARE_FORKHANDLERS)
+    _register_fork_handlers(prepare=handler)
 
 
 def _register_parent_fork_handler(handler):
-    _register_fork_handler(handler, _PARENT_FORKHANDLERS)
-
+    _register_fork_handlers(parent=handler)
 
 def _register_child_fork_handler(handler):
-    _register_fork_handler(handler, _CHILD_FORKHANDLERS)
+    _register_fork_handlers(child=handler)
 
 def _handler_registered_exist():
     return (_PREPARE_FORKHANDLERS
                 or _PARENT_FORKHANDLERS
                 or _CHILD_FORKHANDLERS)
+
+def _unregister_fork_handlers(prepare=None, parent=None,
+                                 child=None, strict=False):
+    if prepare is not None and prepare in _PREPARE_FORKHANDLERS:
+        _PREPARE_FORKHANDLERS.remove(prepare)
+    elif parent is not None and parent in _PARENT_FORKHANDLERS:
+        _PARENT_FORKHANDLERS.remove(parent)
+    elif child is not None and child in _CHILD_FORKHANDLERS:
+        _CHILD_FORKHANDLERS.remove(child)
+    else:
+        return
+
+    if strict:
+        return _unregister_fork_handlers(prepare, parent, child, strict)
 
 def _fork():
     pid = os.fork()
@@ -466,6 +476,10 @@ class Workbench(object):
 
             cfunc.extra["initlized"] = True
 
+    def unregister_fork_handlers(self, prepare=None, parent=None,
+                                     child=None, strict=False):
+        return _unregister_fork_handlers(prepare, parent, child, strict)
+
     def check_namespaces_available_status(self):
         """
         On rhel6/7, the kernel default does not enable all namespaces
@@ -486,7 +500,7 @@ class Workbench(object):
                 tmpfile = os.fdopen(w, 'wb')
                 keys = []
                 for ns in self.namespaces.namespaces:
-                    ns_obj = getattr(self.namespaces, ns)
+                    ns_obj = self.get_namespace(ns)
                     val = ns_obj.value
                     res = unshare(c_int(val))
                     _errno_c_int = c_int.in_dll(pythonapi, "errno")
@@ -511,7 +525,7 @@ class Workbench(object):
 
             for ns_name in self.namespaces.namespaces:
                 if ns_name not in keys:
-                    ns_obj = getattr(self.namespaces, ns_name)
+                    ns_obj = self.get_namespace(ns_name)
                     ns_obj.available = False
 
             self._namespaces_available_status_checked = True
@@ -618,7 +632,7 @@ class Workbench(object):
 
         target_flags = []
         for ns_name in namespaces:
-            ns_obj = getattr(self.namespaces, ns_name)
+            ns_obj = self.get_namespace(ns_name)
             if ns_obj.available:
                 target_flags.append(ns_obj.value)
 
@@ -642,7 +656,7 @@ class Workbench(object):
         if  "namespace" in kwargs:
             ns = kwargs["namespace"]
             if isinstance(ns, basestring) and ns in self.namespaces.namespaces:
-                namespace = getattr(self.namespaces, ns)
+                namespace = self.get_namespace(ns)
             else:
                 raise UnknownNamespaceFound([ns])
 
@@ -657,7 +671,7 @@ class Workbench(object):
             entry = os.path.basename(path)
             if "namespace" in kwargs:
                 ns = kwargs["namespace"]
-                ns_obj = getattr(self.namespaces, ns)
+                ns_obj = self.get_namespace(ns)
                 ns_obj_entry = ns_obj.entry
                 if entry != ns_obj_entry:
                     raise TypeError("complicating path and namespace args found")
@@ -675,7 +689,7 @@ class Workbench(object):
             if not (isinstance(pid, int) or isinstance(pid, long)):
                 raise TypeError("unknown pid found")
             ns = kwargs["namespace"]
-            ns_obj = getattr(self.namespaces, ns)
+            ns_obj = self.get_namespace(ns)
             entry = ns_obj.entry
             path = "/proc/%d/ns/%s" % (pid, entry)
             if os.path.exists(path):
@@ -737,7 +751,7 @@ class Workbench(object):
         self.check_namespaces_available_status()
         available_namespaces = []
         for ns_name in self.namespaces.namespaces:
-            ns_obj = getattr(self.namespaces, ns_name)
+            ns_obj = self.get_namespace(ns_name)
             if ns_obj.available:
                 available_namespaces.append(ns_name)
 
@@ -783,12 +797,17 @@ class Workbench(object):
         if os.path.exists(path):
             _write2file(path, setgroups)
 
+    def get_namespace(self, name):
+        if name is None:
+            name="pid"
+        return getattr(self.namespaces, name)
+
     def show_namespaces_status(self):
         status = []
         self.check_namespaces_available_status()
         namespaces = self.namespaces.namespaces
         for ns_name in namespaces:
-            ns_obj = getattr(self.namespaces, ns_name)
+            ns_obj = self.get_namespace(ns_name)
             status.append((ns_name, ns_obj.available))
         return status
 
@@ -805,7 +824,7 @@ class Workbench(object):
         path = "/proc/%d/ns" % pid
         for ns in namespaces:
             if ns == "mount": continue
-            ns_obj = getattr(self.namespaces, ns)
+            ns_obj = self.get_namespace(ns)
             if not ns_obj.available: continue
             entry = ns_obj.entry
             source = "%s/%s" % (path, entry)
@@ -918,7 +937,7 @@ class Workbench(object):
         os.close(w2)
 
     def _namespace_available(self, namespace):
-        ns_obj = getattr(self.namespaces, namespace)
+        ns_obj = self.get_namespace( namespace)
         return ns_obj.available
 
     def spawn_namespaces(self, namespaces=None, maproot=True, mountproc=True,
@@ -1051,7 +1070,7 @@ workbench = Workbench()
 del Workbench
 
 def atfork(prepare=None, parent=None, child=None):
-    return workbench.atfork(prepare=None, parent=None, child=None)
+    return workbench.atfork(prepare, parent, child)
 
 def sched_getcpu():
     return workbench.sched_getcpu()
@@ -1132,11 +1151,17 @@ def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
 def check_namespaces_available_status():
     return workbench.check_namespaces_available_status()
 
+def get_namespace(name=None):
+    return workbench.get_namespace(name)
 def show_namespaces_status():
     return workbench.show_namespaces_status()
 
 def show_available_c_functions():
     return workbench.show_available_c_functions()
+
+def unregister_fork_handlers(prepare=None, parent=None,
+                                 child=None, strict=False):
+    return workbench.unregister_fork_handlers(prepare, parent, child, strict)
 
 if __name__ == "__main__":
     spawn_namespaces()
