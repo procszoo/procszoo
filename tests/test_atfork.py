@@ -2,6 +2,8 @@
 
 import os
 import sys
+from distutils.log import warn as printf
+
 procszoo_mod_dir = os.path.abspath("..")
 sys.path.append(procszoo_mod_dir)
 from procszoo.utils import *
@@ -20,7 +22,7 @@ if __name__ == "__main__":
         egid = os.getegid()
         hostname = gethostname()
         procs = os.listdir("/proc")
-        print("""%s:
+        printf("""%s:
         cpu: %d pid: %d ppid: %d
         uid %d gid %d euid %d egid %d
         hostname: %s
@@ -38,10 +40,10 @@ if __name__ == "__main__":
         procinfo("child handler")
 
     def simple_handler1():
-        print(1)
+        printf(1)
 
     def simple_handler2():
-        print(2)
+        printf(2)
 
     atfork(prepare=simple_handler1,  child=simple_handler1)
     atfork(parent=parent_hdr, child=child_hdr)
@@ -52,7 +54,7 @@ if __name__ == "__main__":
     if pid == -1:
         raise RuntimeError("do fork failed")
     elif pid == 0:
-        print("child")
+        printf("child")
     elif pid > 0:
         os.waitpid(pid, 0)
-        print("parent")
+        printf("parent")

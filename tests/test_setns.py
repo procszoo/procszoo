@@ -3,23 +3,25 @@ import os
 import sys
 import random
 
+from distutils.log import warn as printf
+
 procszoo_mod_dir = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(procszoo_mod_dir)
 from procszoo.utils import *
 
 if __name__ == "__main__":
     if "setns" not in show_available_c_functions():
-        print "setns func unavailable, quit"
+        printf("setns func unavailable, quit")
         sys.exit(1)
     elif not net_namespace_available():
-        print "net namespace unavailable, quit"
+        printf("net namespace unavailable, quit")
         sys.exit(1)
     ns_bind_dir = "/tmp/ns"
     nscmd="%s/lib/procszoo/exit_immediately" % procszoo_mod_dir
     try:
         spawn_namespaces(ns_bind_dir=ns_bind_dir, nscmd=nscmd)
     except NamespaceRequireSuperuserPrivilege as e:
-        print(e)
+        printf(e)
         sys.exit(1)
 
     pid = os.fork()
@@ -29,7 +31,7 @@ if __name__ == "__main__":
         try:
             setns(path="/tmp/ns/net", namespace="net")
         except NamespaceRequireSuperuserPrivilege as e:
-            print(e)
+            printf(e)
             sys.exit(1)
         else:
             os.system("ifconfig -a")
@@ -43,8 +45,8 @@ if __name__ == "__main__":
             path = "%s/%s" % (ns_bind_dir, ns.entry)
             i = random.randint(0, 1)
             if i == 0:
-                print "umount %s by umount" % path
+                printf("umount %s by umount" % path)
                 umount(path)
             else:
-                print "umount %s by umount2" % path
+                printf("umount %s by umount2" % path)
                 umount2(path, "force")

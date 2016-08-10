@@ -4,6 +4,7 @@ import os
 import sys
 from optparse import OptionParser
 import traceback
+from distutils.log import warn as printf
 
 procszoo_mod_dir = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(procszoo_mod_dir)
@@ -76,16 +77,16 @@ implies -n user""")
     return options, args
 
 def show_version_then_quit():
-    sys.stderr.write("version: %s\n" % __version__)
+    printf("version: %s\n" % __version__)
     sys.exit(0)
 
 def show_namespaces_then_quit():
     for v in show_namespaces_status():
-        print "%-6s: %-5s" % v
+        printf("%-6s: %-5s" % v)
     sys.exit(0)
 
 def show_available_c_functions_and_quit():
-    print "%s" % "\n".join(workbench.show_available_c_functions())
+    printf("%s" % "\n".join(workbench.show_available_c_functions()))
     sys.exit(0)
 
 def main():
@@ -114,15 +115,15 @@ def main():
             groups_map=options.groups_map,
             setgroups=options.setgroups)
     except UnavailableNamespaceFound as e:
-        print(e)
+        printf(e)
         sys.exit(1)
     except NamespaceRequireSuperuserPrivilege as e:
-        print(e)
+        printf(e)
         sys.exit(1)
     except SystemExit:
         sys.exit(0)
     except Exception as e:
-        print(e)
+        printf(e)
         traceback.print_exc()
         exc_info = sys.exc_info()
 

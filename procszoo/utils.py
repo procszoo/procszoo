@@ -8,6 +8,11 @@ import re
 from ctypes import (cdll, c_int, c_long, c_char_p, c_size_t, string_at,
                     create_string_buffer, c_void_p, CFUNCTYPE, pythonapi)
 try:
+    from functools import reduce
+except ImportError:
+    pass
+
+try:
     import pyroute2
 except ImportError:
     _pyroute2_module_available = False
@@ -124,9 +129,10 @@ def _write2file(path, str=None):
         raise RuntimeError("path cannot be none")
     if str is None:
         str = ""
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT)
-    os.write(fd, str)
-    os.close(fd)
+
+    fo = open(path, 'w')
+    fo.write(str)
+    fo.close()
 
 def _map_id(map_file, map=None, pid=None):
     if pid is None:
@@ -567,13 +573,13 @@ class Workbench(object):
         if source is None:
             source = "none"
         if target is None:
-            target = c_char_p()
+            target = ""
         if filesystemtype is None:
-            filesystemtype = c_char_p()
+            filesystemtype = ""
         if mount_type is None:
             mount_type = "unchanged"
         if data is None:
-            data = c_void_p()
+            data = ""
 
         flag = func_obj.extra["flag"]
         propagation = func_obj.extra["propagation"]
@@ -664,7 +670,7 @@ class Workbench(object):
 
         if "fd" in kwargs:
             fd = kwargs["fd"]
-            if not (isinstance(fd, int) or isinstance(fd, long)):
+            if not isinstance(fd, int):
                 raise TypeError("unavailable file descriptor found")
         elif "path" in kwargs:
             path = os.path.abspath(kwargs["path"])
@@ -678,27 +684,27 @@ class Workbench(object):
             if not os.path.exists(path):
                 raise TypeError("%s not existed" % path)
 
-            file_obj = open(path, 'r')
-            _kwargs["file_obj"] = file_obj
-            _kwargs["fd"] = file_obj.fileno()
+            fo = open(path, 'r')
+            _kwargs["file_obj"] = fo
+            _kwargs["fd"] = fo.fileno()
             _kwargs["path"] = path
         elif "pid" in kwargs:
             pid = kwargs["pid"]
             if namespace == 0:
                 raise TypeError("pid named argument need a namespace")
-            if not (isinstance(pid, int) or isinstance(pid, long)):
+            if not isinstance(pid, int):
                 raise TypeError("unknown pid found")
             ns = kwargs["namespace"]
             ns_obj = self.get_namespace(ns)
             entry = ns_obj.entry
             path = "/proc/%d/ns/%s" % (pid, entry)
             if os.path.exists(path):
-                file_obj = open(path, 'r')
-                _kwargs["file_obj"] = file_obj
-                _kwargs["fd"] = file_obj.fileno()
+                fo = open(path, 'r')
+                _kwargs["file_obj"] = fo
+                _kwargs["fd"] = fo.fileno()
         elif "file_obj" in kwargs:
-            file_obj = kwargs["file_obj"]
-            _kwargs["fd"] = file_obj.fileno()
+            fo = kwargs["file_obj"]
+            _kwargs["fd"] = fo.fileno()
 
         flags = c_int(_kwargs["namespace"])
         fd = c_int(_kwargs["fd"])
@@ -857,7 +863,7 @@ class Workbench(object):
             if mountproc:
                 self._mount_proc(mountpoint=mountpoint)
 
-            os.write(w3, chr(_ACLCHAR))
+            os.write(w3, bytes(chr(_ACLCHAR)))
             os.close(w3)
 
             if ord(os.read(r4, 1)) != _ACLCHAR:
@@ -866,10 +872,10 @@ class Workbench(object):
             try:
                 my_init = _find_my_init()
             except IOError as e:
-                print(e)
+                printf(e)
                 sys.exit(1)
             except NamespaceSettingError as e:
-                print(e)
+                printf(e)
                 sys.exit(1)
 
             if nscmd is None:
@@ -893,14 +899,14 @@ class Workbench(object):
                 raise "sync failed"
             os.close(r3)
 
-            os.write(w1, "%d" % pid)
+            os.write(w1, bytes("%d" % pid))
             os.close(w1)
 
             if ord(os.read(r2, 1)) != _ACLCHAR:
                 raise "sync failed"
             os.close(r2)
 
-            os.write(w4, chr(_ACLCHAR))
+            os.write(w4, bytes(chr(_ACLCHAR)))
             os.close(w4)
 
             os.waitpid(pid, 0)
@@ -933,7 +939,7 @@ class Workbench(object):
 
         if ns_bind_dir is not None and "mount" in namespaces:
             self.bind_ns_files(child_pid, namespaces, ns_bind_dir)
-        os.write(w2, chr(_ACLCHAR))
+        os.write(w2, bytes(chr(_ACLCHAR)))
         os.close(w2)
 
     def _namespace_available(self, namespace):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
+from distutils.log import warn as printf
 
 procszoo_mod_dir = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(procszoo_mod_dir)
@@ -12,7 +13,7 @@ if __name__ == "__main__":
         try:
             spawn_namespaces(nscmd=nscmd)
         except NamespaceRequireSuperuserPrivilege as e:
-            print(e)
+            printf(e)
             sys.exit(1)
     else:
-        print "'%s': such file does not exist" % nscmd
+        printf("'%s': such file does not exist" % nscmd)
