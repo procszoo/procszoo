@@ -67,7 +67,8 @@ __all__ = [
     "setns", "spawn_namespaces", "check_namespaces_available_status",
     "show_namespaces_status", "gethostname", "sethostname",
     "getdomainname", "setdomainname", "show_available_c_functions",
-    "get_namespace", "unregister_fork_handlers", "__version__",]
+    "get_namespace", "unregister_fork_handlers",
+    "to_unicode", "to_bytes", "__version__",]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
@@ -238,9 +239,51 @@ def _find_shell(name="bash", shell=None):
 
 def is_string_or_unicode(obj):
     if sys.version_info > (3, 0):
-        return isinstance(obj, str)
+        return isinstance(obj, (str, bytes))
     else:
         return isinstance(obj, basestring)
+
+if sys.version_info > (3, 0):
+    def _to_str(bytes_or_str):
+        if isinstance(bytes_or_str, bytes):
+            value = bytes_or_str.decode('utf-8')
+        else:
+            value = bytes_or_str
+        return value
+
+    def _to_bytes(bytes_or_str):
+        if isinstance(bytes_or_str, str):
+            value = bytes_or_str.encode('utf-8')
+        else:
+            value = bytes_or_str
+        return value
+else:
+    def _to_unicode(unicode_or_str):
+        if isinstance(unicode_or_str, str):
+            value = unicode_or_str.decode('utf-8')
+        else:
+            value = unicode_or_str
+        return value
+
+    def _to_str(unicode_or_str):
+        if isinstance(unicode_or_str, unicode):
+            value = unicode_or_str.encode('utf-8')
+        else:
+            value = unicode_or_str
+        return value
+
+def to_unicode(unicode_or_bytes_or_str):
+    if sys.version_info > (3, 0):
+        return _to_str(unicode_or_bytes_or_str)
+    else:
+        return _to_unicode(unicode_or_bytes_or_str)
+
+def to_bytes(unicode_or_bytes_or_str):
+    if sys.version_info > (3, 0):
+        return _to_bytes(unicode_or_bytes_or_str)
+    else:
+        return _to_str(unicode_or_bytes_or_str)
+
 
 class CFunction(object):
     """
@@ -443,7 +486,13 @@ class Workbench(object):
             c_func = func_obj.func
             context = locals()
             def c_func_wrapper(*args, **context):
-                res = c_func(*args)
+                tmp_args = []
+                for arg in args:
+                    if is_string_or_unicode(arg):
+                        tmp_args.append(to_bytes(arg))
+                    else:
+                        tmp_args.append(arg)
+                res = c_func(*tmp_args)
                 c_int_errno = c_int.in_dll(pythonapi, "errno")
                 if func_obj.failed(res):
                     raise RuntimeError(os.strerror(c_int_errno.value))
@@ -607,7 +656,7 @@ class Workbench(object):
         func_obj = self.functions["umount2"]
         if mountpoint is None:
             return
-        if not isinstance(mountpoint, basestring):
+        if not is_string_or_unicode(mountpoint):
             raise RuntimeError("mountpoint should be a path to a mount point")
         if not os.path.exists(mountpoint):
             raise RuntimeError("mount point '%s': cannot found")
@@ -661,7 +710,7 @@ class Workbench(object):
         namespace = 0
         if  "namespace" in kwargs:
             ns = kwargs["namespace"]
-            if isinstance(ns, basestring) and ns in self.namespaces.namespaces:
+            if is_string_or_unicode(ns) and ns in self.namespaces.namespaces:
                 namespace = self.get_namespace(ns)
             else:
                 raise UnknownNamespaceFound([ns])
@@ -741,9 +790,9 @@ class Workbench(object):
         return self._c_func_setdomainname(buf, buf_len)
 
     def pivot_root(self, new_root, put_old):
-        if not isinstance(new_root, basestring):
+        if not is_string_or_unicode(new_root):
             raise RuntimeError("new_root argument is not an available path")
-        if not isinstance(put_old, basestring):
+        if not is_string_or_unicode(put_old):
             raise RuntimeError("put_old argument is not an available path")
         if not os.path.exists(new_root):
             raise RuntimeError("%s: no such directory" % new_root)
@@ -863,7 +912,7 @@ class Workbench(object):
             if mountproc:
                 self._mount_proc(mountpoint=mountpoint)
 
-            os.write(w3, bytes(chr(_ACLCHAR)))
+            os.write(w3, to_bytes(chr(_ACLCHAR)))
             os.close(w3)
 
             if ord(os.read(r4, 1)) != _ACLCHAR:
@@ -899,14 +948,14 @@ class Workbench(object):
                 raise "sync failed"
             os.close(r3)
 
-            os.write(w1, bytes("%d" % pid))
+            os.write(w1, to_bytes("%d" % pid))
             os.close(w1)
 
             if ord(os.read(r2, 1)) != _ACLCHAR:
                 raise "sync failed"
             os.close(r2)
 
-            os.write(w4, bytes(chr(_ACLCHAR)))
+            os.write(w4, to_bytes(chr(_ACLCHAR)))
             os.close(w4)
 
             os.waitpid(pid, 0)
@@ -939,7 +988,7 @@ class Workbench(object):
 
         if ns_bind_dir is not None and "mount" in namespaces:
             self.bind_ns_files(child_pid, namespaces, ns_bind_dir)
-        os.write(w2, bytes(chr(_ACLCHAR)))
+        os.write(w2, to_bytes(chr(_ACLCHAR)))
         os.close(w2)
 
     def _namespace_available(self, namespace):

@@ -26,8 +26,8 @@ Procszoo gives a smart *init* program. I get it from
 [baseimage-docker](https://github.com/phusion/baseimage-docker).
 Thanks a lot, you guys.
 
-Procszoo does not require new version Python and Linux
-kernel. We support RHEL 6/CentOS 6.
+Procszoo does not require new version Python (but we support python3, too)
+and Linux kernel.
 
 ## Try It
 ---------
@@ -38,6 +38,11 @@ Procszoo only requires Python standard libraries and the following packages
     sudo yum -y install autoconf gcc make glibc-headers
     # Debain/Ubuntu
     sudo apt-get -y install autoconf gcc make libc6-dev
+
+On the RHEL/CentOS/Scientific Linux >= 6, because of SELinux cause some libffi
+bug, if you try python3, please disable SELinux
+
+    sudo sed -i -e 's/^SELINUX.*=.*/SELINUX=disabled/g' /etc/selinux/config
 
 After that, all you need are to clone it and do as follows,
 
