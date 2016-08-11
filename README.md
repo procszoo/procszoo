@@ -1,5 +1,5 @@
-Procszoo
-========
+About
+=====
 
 Procszoo is a small Python module that gives you full
 power to manage your processes by Linux namespaces.
@@ -7,6 +7,8 @@ power to manage your processes by Linux namespaces.
 ## Contents
 - [wiki](https://github.com/xning/procszoo/wiki)
 - [Goals](#goals)
+- [Requirements](#requirements)
+- [Building](#building)
 - [Try It](#try-it)
 - [Getting Your Feet Wet with the *procszoo* Module](#getting-your-feet-wet-with-the-procszoo-module)
 - [Networks](#networks)
@@ -29,8 +31,8 @@ Thanks a lot, you guys.
 Procszoo does not require new version Python (but we support python3, too)
 and Linux kernel.
 
-## Try It
----------
+## Requirements
+---------------
 
 Procszoo only requires Python standard libraries and the following packages
 
@@ -39,15 +41,23 @@ Procszoo only requires Python standard libraries and the following packages
     # Debain/Ubuntu
     sudo apt-get -y install autoconf gcc make libc6-dev
 
-On the RHEL/CentOS/Scientific Linux >= 6, because of SELinux cause some libffi
-bug, if you try python3, please disable SELinux
+On the RHEL/CentOS/Scientific Linux >= 6, because of SELinux
+causing some libffi bug, if you try python3, please disable SELinux as follows
 
     sudo sed -i -e 's/^SELINUX.*=.*/SELINUX=disabled/g' /etc/selinux/config
+    sudo reboot
 
-After that, all you need are to clone it and do as follows,
+Building
+--------
+All you need do are to clone it and do as follows,
 
     git clone https://github.com/xning/procszoo.git
-    cd procszoo && make clean && make
+    cd procszoo && make
+
+Try It
+------
+Now you can try it as follows
+
     cd bin
     # what namsepaces are available?
     ./richard_parker -l
@@ -56,8 +66,7 @@ After that, all you need are to clone it and do as follows,
     # get an interactive shell
     ./richard_parker
 
-If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6,
-you need run the *richard_parker* as *super user*
+If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6, you need run the *richard_parker* as *super user*
 
     sudo ./richard_parker
 
