@@ -42,10 +42,16 @@ Procszoo only requires Python standard libraries and the following packages
     sudo apt-get -y install autoconf gcc make libc6-dev
 
 On the RHEL/CentOS/Scientific Linux >= 6, because of SELinux
-causing some libffi bug, if you try python3, please disable SELinux as follows
+causing some libffi bug, if you try python3, please disable SELinux as follows,
 
     sudo sed -i -e 's/^SELINUX.*=.*/SELINUX=disabled/g' /etc/selinux/config
     sudo reboot
+
+If you will clone the *procszoo* in your home directory, On
+the RHEL/CentOS/Scientific Linux/Fedora, the default mode of your home
+directory is 0400, this will cause trouble, hence change it
+
+    chmod go+rx ${HOME}
 
 Building
 --------
