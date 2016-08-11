@@ -239,6 +239,8 @@ think that you need learn them all
     - getdomainname
     - setdomainname
     - pivot\_root
+    - to\_unicode
+    - to\_bytes
     - adjust\_namespaces
     - get_namespace
     - show\_namespaces\_status
