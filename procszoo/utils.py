@@ -889,10 +889,13 @@ class Workbench(object):
             self.mount(source=source, target=target, mount_type="bind")
 
     def _run_cmd_in_new_namespaces(
-            self, r1, w1, r2, w2, namespaces, mountproc,
-            mountpoint, nscmd, propagation):
+            self, r1, w1, r2, w2, namespaces, mountproc, mountpoint,
+            nscmd=None, propagation=None, init_prog=None, func=None):
         os.close(r1)
         os.close(w2)
+
+        if namespaces is None:
+            return
 
         self.unshare(namespaces)
 
@@ -918,27 +921,46 @@ class Workbench(object):
             if ord(os.read(r4, 1)) != _ACLCHAR:
                 raise "sync failed"
             os.close(r4)
-            try:
-                my_init = _find_my_init()
-            except IOError as e:
-                printf(e)
-                sys.exit(1)
-            except NamespaceSettingError as e:
-                printf(e)
-                sys.exit(1)
 
-            if nscmd is None:
-                nscmd = _find_shell()
-            args = ["-c", my_init, "--skip-startup-files",
-                    "--skip-runit", "--quiet"]
-            if isinstance(nscmd, list):
-                args = args + nscmd
+            if func is None:
+                if nscmd is None:
+                    nscmd = _find_shell()
+
+                if init_prog is None:
+                    try:
+                        my_init = _find_my_init()
+                    except IOError as e:
+                        printf(e)
+                        sys.exit(1)
+                    except NamespaceSettingError as e:
+                        printf(e)
+                        sys.exit(1)
+                    else:
+                        args = ["-c", my_init, "--skip-startup-files",
+                            "--skip-runit", "--quiet"]
+
+                    if isinstance(nscmd, list):
+                        args = args + nscmd
+                    else:
+                        args.append(nscmd)
+
+                    if "pid" in namespaces:
+                        init_prog = "python"
+                    else:
+                        init_prog = nscmd
+                        args = [nscmd]
+                else:
+                    if "pid" in namespaces:
+                        args = [nscmd]
+                    else:
+                        init_prog = nscmd
+                        args = [nscmd]
+                os.execlp(init_prog, *args)
             else:
-                args.append(nscmd)
-            if "pid" in namespaces:
-                os.execlp("python", *args)
-            else:
-                os.execlp(nscmd, (nscmd))
+                if hasattr(func, '__call__'):
+                    func()
+                else:
+                    raise NamespaceSettingError()
             sys.exit(0)
         else:
             os.close(w3)
@@ -990,6 +1012,7 @@ class Workbench(object):
             self.bind_ns_files(child_pid, namespaces, ns_bind_dir)
         os.write(w2, to_bytes(chr(_ACLCHAR)))
         os.close(w2)
+        return child_pid
 
     def _namespace_available(self, namespace):
         ns_obj = self.get_namespace( namespace)
@@ -998,11 +1021,30 @@ class Workbench(object):
     def spawn_namespaces(self, namespaces=None, maproot=True, mountproc=True,
                              mountpoint=None, ns_bind_dir=None, nscmd=None,
                              propagation=None, negative_namespaces=None,
-                             setgroups=None, users_map=None,
-                             groups_map=None):
+                             setgroups=None, users_map=None, groups_map=None,
+                             init_prog=None, func=None):
         """
         workbench.spawn_namespace(namespaces=["pid", "net", "mount"])
         """
+
+        if (init_prog is not None or nscmd is not None) and func is not None:
+            raise NamespaceSettingError()
+        origin_args = copy({
+            "namespaces": namespaces, "maproot": maproot,
+            "mountproc": mountproc, "mountpoint": mountpoint,
+            "ns_bind_dir": ns_bind_dir, "nscmd": nscmd,
+            "propagation": propagation,
+            "negative_namespaces": negative_namespaces,
+            "setgroups": setgroups, "users_map": users_map,
+            "groups_map": groups_map, "init_prog": init_prog,
+            })
+        if func is None or not hasattr(func, '__name__'):
+            func_name = ''
+        else:
+            func_name = func.__name__
+
+        origin_args['func'] = func_name
+
         self.check_namespaces_available_status()
         if not self.user_namespace_available():
             maproot = False
@@ -1099,10 +1141,10 @@ class Workbench(object):
 
         if pid == 0:
             self._run_cmd_in_new_namespaces(
-                r1, w1, r2, w2, namespaces,
-                mountproc, mountpoint, nscmd, propagation)
+                r1, w1, r2, w2, namespaces, mountproc, mountpoint,
+                nscmd, propagation, init_prog, func)
         else:
-            self._continue_original_flow(
+            child_pid = self._continue_original_flow(
                 r1, w1, r2, w2, namespaces, ns_bind_dir,
                 setgroups, maproot, users_map, groups_map)
             def ensure_wait_child_process(pid=pid):
@@ -1111,6 +1153,28 @@ class Workbench(object):
                 except OSError:
                     pass
             atexit.register(ensure_wait_child_process)
+
+            last_args = copy({
+                "namespaces": namespaces, "maproot": maproot,
+                "mountproc": mountproc, "mountpoint": mountpoint,
+                "ns_bind_dir": ns_bind_dir, "nscmd": nscmd,
+                "propagation": propagation,
+                "negative_namespaces": negative_namespaces,
+                "setgroups": setgroups, "users_map": users_map,
+                "groups_map": groups_map, "init_prog": init_prog,
+                })
+            if func is None or not hasattr(func, '__name__'):
+                func_name = ''
+            else:
+                func_name = func.__name__
+
+            last_args['func'] = func_name
+
+            return {
+                'pid': child_pid,
+                'origin_args': origin_args,
+                'last_args': last_args
+                }
 
 class CFunctionBaseException(Exception):
     pass
@@ -1195,13 +1259,14 @@ def adjust_namespaces(namespaces=None, negative_namespaces=None):
 def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
                          mountpoint="/proc", ns_bind_dir=None, nscmd=None,
                          propagation=None, negative_namespaces=None,
-                         setgroups=None, users_map=None,
-                         groups_map=None):
+                         setgroups=None, users_map=None, groups_map=None,
+                         init_prog=None, func=None):
     return workbench.spawn_namespaces(
         namespaces=namespaces, maproot=maproot, mountproc=mountproc,
         mountpoint=mountpoint, ns_bind_dir=ns_bind_dir, nscmd=nscmd,
         propagation=propagation, negative_namespaces=negative_namespaces,
-        setgroups=setgroups, users_map=users_map, groups_map=groups_map)
+        setgroups=setgroups, users_map=users_map, groups_map=groups_map,
+        init_prog=init_prog, func=func)
 
 def check_namespaces_available_status():
     return workbench.check_namespaces_available_status()

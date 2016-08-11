@@ -42,6 +42,9 @@ implies -n user""")
     parser.add_option("-g", "--group-map", action="append", dest="groups_map",
                           type="string",
                           help="group map settings, implies -n user")
+    parser.add_option("--init-program", action="store", dest="init_prog",
+                          type="string",
+                          help="replace the my_init program by yours")
     parser.add_option(
         "-s", "--setgroups", action="store", type="string",
         dest="setgroups",
@@ -113,7 +116,8 @@ def main():
             propagation=options.propagation,
             nscmd=nscmd, users_map=options.users_map,
             groups_map=options.groups_map,
-            setgroups=options.setgroups)
+            setgroups=options.setgroups,
+            init_prog=options.init_prog)
     except UnavailableNamespaceFound as e:
         printf(e)
         sys.exit(1)
