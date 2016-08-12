@@ -284,6 +284,40 @@ def to_bytes(unicode_or_bytes_or_str):
     else:
         return _to_str(unicode_or_bytes_or_str)
 
+def _copy_args(namespaces=None, maproot=True, mountproc=True,
+                   mountpoint=None, ns_bind_dir=None, nscmd=None,
+                   propagation=None, negative_namespaces=None,
+                   setgroups=None, users_map=None, groups_map=None,
+                   init_prog=None, func=None):
+    _args = copy({
+        "namespaces": namespaces, "maproot": maproot,
+        "mountproc": mountproc, "mountpoint": mountpoint,
+        "ns_bind_dir": ns_bind_dir, "nscmd": nscmd,
+        "propagation": propagation,
+        "negative_namespaces": negative_namespaces,
+        "setgroups": setgroups, "users_map": users_map,
+        "groups_map": groups_map, "init_prog": init_prog,
+        })
+    if func is None or not hasattr(func, '__name__'):
+        func_name = ''
+    else:
+        func_name = func.__name__
+
+    _args['func'] = func_name
+    return _args
+
+def _need_super_user_privilege(namespaces, ns_bind_dir,
+                                   users_map, groups_map):
+    require_root_privilege = False
+    if not user_namespace_available():
+        require_root_privilege = True
+    if namespaces and "user" not in namespaces:
+        require_root_privilege = True
+    if ns_bind_dir:
+        require_root_privilege = True
+    if users_map or groups_map:
+        require_root_privilege = True
+    return require_root_privilege
 
 class CFunction(object):
     """
@@ -449,6 +483,7 @@ class Workbench(object):
             argtypes=[c_char_p, c_size_t])
 
         for func_name in self.functions:
+            if func_name == 'syscall': continue
             func_obj = self.functions[func_name]
             if func_obj.func:
                 self.available_c_functions.append(func_name)
@@ -1018,33 +1053,9 @@ class Workbench(object):
         ns_obj = self.get_namespace( namespace)
         return ns_obj.available
 
-    def spawn_namespaces(self, namespaces=None, maproot=True, mountproc=True,
-                             mountpoint=None, ns_bind_dir=None, nscmd=None,
-                             propagation=None, negative_namespaces=None,
-                             setgroups=None, users_map=None, groups_map=None,
-                             init_prog=None, func=None):
-        """
-        workbench.spawn_namespace(namespaces=["pid", "net", "mount"])
-        """
-
-        if (init_prog is not None or nscmd is not None) and func is not None:
-            raise NamespaceSettingError()
-        origin_args = copy({
-            "namespaces": namespaces, "maproot": maproot,
-            "mountproc": mountproc, "mountpoint": mountpoint,
-            "ns_bind_dir": ns_bind_dir, "nscmd": nscmd,
-            "propagation": propagation,
-            "negative_namespaces": negative_namespaces,
-            "setgroups": setgroups, "users_map": users_map,
-            "groups_map": groups_map, "init_prog": init_prog,
-            })
-        if func is None or not hasattr(func, '__name__'):
-            func_name = ''
-        else:
-            func_name = func.__name__
-
-        origin_args['func'] = func_name
-
+    def _fix_spawn_options(self, namespaces, maproot, mountproc, mountpoint,
+                               ns_bind_dir, propagation, negative_namespaces,
+                               setgroups, users_map, groups_map):
         self.check_namespaces_available_status()
         if not self.user_namespace_available():
             maproot = False
@@ -1061,7 +1072,6 @@ class Workbench(object):
             mountpoint = '/proc'
         if not self.mount_namespace_available():
             propagation = None
-
         if setgroups == "allow" and maproot:
             raise NamespaceSettingError()
 
@@ -1077,16 +1087,8 @@ class Workbench(object):
         if unsupported_namespaces:
             raise UnavailableNamespaceFound(unsupported_namespaces)
 
-        require_root_privilege = False
-        if not user_namespace_available():
-            require_root_privilege = True
-        if namespaces and "user" not in namespaces:
-            require_root_privilege = True
-        if ns_bind_dir:
-            require_root_privilege = True
-        if users_map or groups_map:
-            require_root_privilege = True
-        if require_root_privilege:
+        if _need_super_user_privilege(namespaces, ns_bind_dir,
+                                          users_map, groups_map):
             euid = os.geteuid()
             if euid != 0:
                 raise NamespaceRequireSuperuserPrivilege()
@@ -1135,6 +1137,34 @@ class Workbench(object):
              propagation = None
              mountproc = False
 
+        return (namespaces, maproot, mountproc, mountpoint,
+                    ns_bind_dir, propagation, negative_namespaces,
+                    setgroups, users_map, groups_map)
+
+    def spawn_namespaces(self, namespaces=None, maproot=True, mountproc=True,
+                             mountpoint=None, ns_bind_dir=None, nscmd=None,
+                             propagation=None, negative_namespaces=None,
+                             setgroups=None, users_map=None, groups_map=None,
+                             init_prog=None, func=None):
+        """
+        workbench.spawn_namespace(namespaces=["pid", "net", "mount"])
+        """
+
+        if (init_prog is not None or nscmd is not None) and func is not None:
+            raise NamespaceSettingError()
+        origin_args = _copy_args(namespaces, maproot, mountproc, mountpoint,
+                                     ns_bind_dir, nscmd, propagation,
+                                     negative_namespaces, setgroups, users_map,
+                                     groups_map, init_prog, func)
+
+        (namespaces, maproot, mountproc, mountpoint,
+             ns_bind_dir, propagation, negative_namespaces,
+             setgroups, users_map, groups_map
+        ) = self._fix_spawn_options(
+            namespaces, maproot, mountproc, mountpoint,
+            ns_bind_dir, propagation, negative_namespaces,
+            setgroups, users_map, groups_map)
+
         r1, w1 = os.pipe()
         r2, w2 = os.pipe()
         pid = _fork()
@@ -1154,27 +1184,14 @@ class Workbench(object):
                     pass
             atexit.register(ensure_wait_child_process)
 
-            last_args = copy({
-                "namespaces": namespaces, "maproot": maproot,
-                "mountproc": mountproc, "mountpoint": mountpoint,
-                "ns_bind_dir": ns_bind_dir, "nscmd": nscmd,
-                "propagation": propagation,
-                "negative_namespaces": negative_namespaces,
-                "setgroups": setgroups, "users_map": users_map,
-                "groups_map": groups_map, "init_prog": init_prog,
-                })
-            if func is None or not hasattr(func, '__name__'):
-                func_name = ''
-            else:
-                func_name = func.__name__
-
-            last_args['func'] = func_name
-
-            return {
-                'pid': child_pid,
-                'origin_args': origin_args,
-                'last_args': last_args
-                }
+            last_args = _copy_args(namespaces, maproot, mountproc, mountpoint,
+                                     ns_bind_dir, nscmd, propagation,
+                                     negative_namespaces, setgroups, users_map,
+                                     groups_map, init_prog, func)
+            return {'pid': pid,
+                        'child_pid': child_pid,
+                        'origin_args': origin_args,
+                        'last_args': last_args}
 
 class CFunctionBaseException(Exception):
     pass
