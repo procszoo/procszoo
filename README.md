@@ -62,7 +62,11 @@ All you need do are to clone it and do as follows,
 
 Try It
 ------
-Now you can try it as follows
+Now you can try it in an interactive shell. You just run the *procszoo.utils*
+
+    python -m procszoo.utils
+
+Surely there is a cli
 
     cd bin
     # what namsepaces are available?
@@ -72,7 +76,12 @@ Now you can try it as follows
     # get an interactive shell
     ./richard_parker
 
-If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6, you need run the *richard_parker* as *super user*
+If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6,
+you need *super user* privileges
+
+    sudo python -m procszoo.utils
+
+or
 
     sudo ./richard_parker
 
@@ -203,8 +212,8 @@ namespace in a new terminal
 
 * os.execv complains "permission deny"
 
-    If running *richard_parker* failed on RHEL/CentOS/Fedora, and get following error
-    message like this
+    If running *richard_parker* failed on RHEL/CentOS/Fedora, and get
+    following error message like this
 
     >         os.execv(...)
     >     OSError: [Errno 13] Permission denied

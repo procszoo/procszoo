@@ -1301,4 +1301,8 @@ def unregister_fork_handlers(prepare=None, parent=None,
     return workbench.unregister_fork_handlers(prepare, parent, child, strict)
 
 if __name__ == "__main__":
-    spawn_namespaces()
+    try:
+        spawn_namespaces()
+    except NamespaceRequireSuperuserPrivilege():
+        printf(e)
+        sys.exit(1)
