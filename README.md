@@ -238,7 +238,7 @@ think that you need learn them all
     - workbench
 
 * key functions
-    - spawn\_namespaces
+    - [spawn\_namespaces](https://github.com/xning/procszoo/wiki/The-spawn_namespace-method-workflow)
     - check\_namespaces\_available\_status
 
 * helpful functions
