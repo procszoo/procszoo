@@ -783,8 +783,12 @@ class Workbench(object):
         flags = c_int(_kwargs["namespace"])
         fd = c_int(_kwargs["fd"])
         if self.functions["setns"].func is None:
-            NR_SETNS = self._syscall_nr("setns")
-            return self._c_func_syscall(c_long(NR_SETNS), fd, flags)
+            try:
+                NR_SETNS = self._syscall_nr("setns")
+            except CFunctionUnknowSyscall as e:
+                raise CFunctionNotFound()
+            else:
+                return self._c_func_syscall(c_long(NR_SETNS), fd, flags)
         else:
             return self._c_func_setns(fd, flags)
 
@@ -824,8 +828,13 @@ class Workbench(object):
         if not os.path.exists(put_old):
             raise RuntimeError("%s: no such directory" % put_old)
 
-        NR_PIVOT_ROOT = self._syscall_nr("pivot_root")
-        return self._c_func_syscall(c_long(NR_PIVOT_ROOT), new_root, put_old)
+        try:
+            NR_PIVOT_ROOT = self._syscall_nr("pivot_root")
+        except CFunctionUnknowSyscall:
+            raise CFunctionNotFound()
+        else:
+            return self._c_func_syscall(c_long(NR_PIVOT_ROOT),
+                                            new_root, put_old)
 
     def adjust_namespaces(self, namespaces=None, negative_namespaces=None):
         self.check_namespaces_available_status()
