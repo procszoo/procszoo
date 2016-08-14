@@ -61,14 +61,14 @@ __all__ = [
     "NamespaceGenericException", "UnknownNamespaceFound",
     "UnavailableNamespaceFound", "NamespaceSettingError",
     "NamespaceRequireSuperuserPrivilege",
-    "CFunctionBaseException", "CFunctionNotFound",
+    "CFunctionBaseException", "CFunctionNotFound", "CFunctionCallFailed",
     "workbench", "atfork", "sched_getcpu", "mount", "umount",
     "umount2", "unshare", "pivot_root", "adjust_namespaces",
     "setns", "spawn_namespaces", "check_namespaces_available_status",
     "show_namespaces_status", "gethostname", "sethostname",
     "getdomainname", "setdomainname", "show_available_c_functions",
-    "get_namespace", "unregister_fork_handlers",
-    "to_unicode", "to_bytes", "__version__",]
+    "get_namespace", "unregister_fork_handlers", "to_unicode", "to_bytes",
+    "__version__",]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
@@ -238,12 +238,12 @@ def _find_shell(name="bash", shell=None):
     return "sh"
 
 def is_string_or_unicode(obj):
-    if sys.version_info > (3, 0):
+    if sys.version_info >= (3, 0):
         return isinstance(obj, (str, bytes))
     else:
         return isinstance(obj, basestring)
 
-if sys.version_info > (3, 0):
+if sys.version_info >= (3, 0):
     def _to_str(bytes_or_str):
         if isinstance(bytes_or_str, bytes):
             value = bytes_or_str.decode('utf-8')
@@ -273,13 +273,13 @@ else:
         return value
 
 def to_unicode(unicode_or_bytes_or_str):
-    if sys.version_info > (3, 0):
+    if sys.version_info >= (3, 0):
         return _to_str(unicode_or_bytes_or_str)
     else:
         return _to_unicode(unicode_or_bytes_or_str)
 
 def to_bytes(unicode_or_bytes_or_str):
-    if sys.version_info > (3, 0):
+    if sys.version_info >= (3, 0):
         return _to_bytes(unicode_or_bytes_or_str)
     else:
         return _to_str(unicode_or_bytes_or_str)
@@ -530,7 +530,7 @@ class Workbench(object):
                 res = c_func(*tmp_args)
                 c_int_errno = c_int.in_dll(pythonapi, "errno")
                 if func_obj.failed(res):
-                    raise RuntimeError(os.strerror(c_int_errno.value))
+                    raise CFunctionCallFailed(os.strerror(c_int_errno.value))
                 return res
 
             return c_func_wrapper
@@ -1194,6 +1194,9 @@ class Workbench(object):
                         'last_args': last_args}
 
 class CFunctionBaseException(Exception):
+    pass
+
+class CFunctionCallFailed(CFunctionBaseException):
     pass
 
 class CFunctionNotFound(CFunctionBaseException):

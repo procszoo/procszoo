@@ -7,7 +7,7 @@ procszoo_mod_dir = os.path.abspath("..")
 sys.path.append(procszoo_mod_dir)
 from procszoo.utils import *
 
-if sys.version_info > (3, 0):
+if sys.version_info >= (3, 0):
     unicode_str = "Hello"
     bytes_str = b"Hello"
     char = chr(0x006)
