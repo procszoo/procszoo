@@ -62,11 +62,7 @@ All you need do are to clone it and do as follows,
 
 Try It
 ------
-Now you can try it in an interactive shell. You just run the *procszoo.utils*
-
-    python -m procszoo.utils
-
-Surely there is a cli
+Now you can try it in an interactive shell as follows
 
     cd bin
     # what namsepaces are available?
@@ -78,10 +74,6 @@ Surely there is a cli
 
 If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6,
 you need *super user* privileges
-
-    sudo python -m procszoo.utils
-
-or
 
     sudo ./richard_parker
 
@@ -117,14 +109,14 @@ can add the path as follows
 
 then if you want to enable each namespaces that your kernel supports
 
-    from procszoo.utils import *
+    from procszoo.c_functions import *
     
     if __name__ == "__main__":
         spawn_namespaces()
 
 If you need run your own program instead of an interactive *shell*, 
 
-    from procszoo.utils import *
+    from procszoo.c_functionss import *
     
     if __name__ == "__main__":
         spawn_namespaces(nscmd=path_to_your_program)

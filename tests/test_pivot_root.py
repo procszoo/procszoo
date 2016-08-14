@@ -6,7 +6,7 @@ from ctypes import c_char_p
 
 procszoo_mod_dir = os.path.abspath("%s/.." % os.path.dirname(__file__))
 sys.path.append(procszoo_mod_dir)
-from procszoo.utils import *
+from procszoo.c_functions import *
 
 if __name__ == "__main__":
     euid = os.geteuid()

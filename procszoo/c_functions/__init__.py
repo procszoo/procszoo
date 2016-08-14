@@ -30,11 +30,11 @@ if _pyroute2_module_available:
         _pyroute2_netns_available = True
 
 import pickle
-from copy import copy
+from copy import copy, deepcopy
 import json
 
-from .namespaces import *
-from procszoo.c_macros import *
+from ..namespaces import *
+from .macros import *
 
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
@@ -161,7 +161,7 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
 def _find_my_init(paths=None, name=None, file_mode=None, dir_mode=None):
     if paths is None:
         cwd = os.path.dirname(os.path.abspath(__file__))
-        absdir = os.path.abspath("%s/.." % cwd)
+        absdir = os.path.abspath("%s/../.." % cwd)
         paths = ["%s/lib/procszoo" % absdir,
                  "%s/bin" % absdir,
                  "/usr/local/lib/procszoo",
@@ -276,7 +276,7 @@ def _copy_args(namespaces=None, maproot=True, mountproc=True,
                    propagation=None, negative_namespaces=None,
                    setgroups=None, users_map=None, groups_map=None,
                    init_prog=None, func=None):
-    _args = copy({
+    _args = deepcopy({
         "namespaces": namespaces, "maproot": maproot,
         "mountproc": mountproc, "mountpoint": mountpoint,
         "ns_bind_dir": ns_bind_dir, "nscmd": nscmd,
@@ -503,7 +503,8 @@ class Workbench(object):
         if name.startswith("_c_func_"):
             c_func_name = name.replace("_c_func_", "")
             if c_func_name not in self.available_c_functions:
-                raise CFunctionNotFound(c_func_name)
+                if c_func_name != 'syscall':
+                    raise CFunctionNotFound(c_func_name)
             func_obj = self.functions[c_func_name]
             c_func = func_obj.func
             context = locals()
@@ -517,7 +518,7 @@ class Workbench(object):
                 res = c_func(*tmp_args)
                 c_int_errno = c_int.in_dll(pythonapi, "errno")
                 if func_obj.failed(res):
-                    if c_int_errno.value == EINVAL:
+                    if c_int_errno.value == EPERM:
                         raise NamespaceRequireSuperuserPrivilege()
                     else:
                         raise CFunctionCallFailed(os.strerror(c_int_errno.value))
@@ -731,7 +732,7 @@ class Workbench(object):
             raise TypeError("complicating named argument found: %s"
                             % ", ".join(wrong_keys))
 
-        _kwargs = copy(kwargs)
+        _kwargs = deepcopy(kwargs)
         namespace = 0
         if  "namespace" in kwargs:
             ns = kwargs["namespace"]

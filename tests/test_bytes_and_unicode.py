@@ -5,7 +5,7 @@ from distutils.log import warn as printf
 
 procszoo_mod_dir = os.path.abspath("..")
 sys.path.append(procszoo_mod_dir)
-from procszoo.utils import *
+from procszoo.c_functions import *
 
 if sys.version_info >= (3, 0):
     unicode_str = "Hello"

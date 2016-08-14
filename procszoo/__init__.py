@@ -1,1 +1,3 @@
-# make the dir as a module
+from .c_functions import *
+
+__all__ = []
