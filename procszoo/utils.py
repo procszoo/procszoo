@@ -12,10 +12,12 @@ try:
 except ImportError:
     pass
 
+_pyroute2_module_available = False
+_pyroute2_netns_available = False
 try:
     import pyroute2
 except ImportError:
-    _pyroute2_module_available = False
+    pass
 else:
     _pyroute2_module_available = True
 
@@ -23,31 +25,16 @@ if _pyroute2_module_available:
     try:
         pyroute2.NetNS
     except AttributeError:
-        _pyroute2_netns_available = False
+        pass
     else:
         _pyroute2_netns_available = True
-else:
-    _pyroute2_netns_available = False
 
 import pickle
 from copy import copy
 import json
 
 from .namespaces import *
-
-try:
-    from procszoo.syscall_pivot_root_number import NR_PIVOT_ROOT
-except ImportError:
-    _syscall_nr_pivot_root = False
-else:
-    _syscall_nr_pivot_root = True
-
-try:
-    from procszoo.syscall_setns_number import NR_SETNS
-except ImportError:
-    _syscall_nr_setns = False
-else:
-    _syscall_nr_setns = True
+from procszoo.c_macros import *
 
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
@@ -393,9 +380,9 @@ class Workbench(object):
 
         exported_name = "syscall"
         extra = {}
-        if _syscall_nr_pivot_root:
+        if SYSCALL_PIVOT_ROOT_AVAILABLE:
             extra["pivot_root"] = NR_PIVOT_ROOT
-        if _syscall_nr_setns:
+        if SYSCALL_SETNS_AVAILABLE:
             extra["setns"] = NR_SETNS
 
         self.functions[exported_name] = CFunction(
@@ -530,7 +517,10 @@ class Workbench(object):
                 res = c_func(*tmp_args)
                 c_int_errno = c_int.in_dll(pythonapi, "errno")
                 if func_obj.failed(res):
-                    raise CFunctionCallFailed(os.strerror(c_int_errno.value))
+                    if c_int_errno.value == EINVAL:
+                        raise NamespaceRequireSuperuserPrivilege()
+                    else:
+                        raise CFunctionCallFailed(os.strerror(c_int_errno.value))
                 return res
 
             return c_func_wrapper
@@ -579,7 +569,7 @@ class Workbench(object):
             return
 
         unshare = self.functions["unshare"].func
-        EINVAL = 22
+
         r, w = os.pipe()
 
         pid0 = _fork()

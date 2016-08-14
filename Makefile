@@ -9,7 +9,7 @@ all: configure
 configure: configure.ac
 	$(Q)[ -e configure ] && autoreconf || autoconf
 clean:
-	$(Q)rm -f configure procszoo/syscall_*.py
+	$(Q)rm -f configure procszoo/c_macros.py
 	$(Q)find . -name "*.pyc" | xargs rm -f
 	$(Q)find . -name "*~" | xargs rm -f
 	$(Q)rm -rf autom4te.cache config.log config.status

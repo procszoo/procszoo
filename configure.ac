@@ -15,7 +15,6 @@ AC_COMPUTE_INT([NR_PIVOT_ROOT_VAL], [__NR_pivot_root], [[#include <syscall.h>]],
   AC_MSG_WARN([syscall.h: could not determine '__NR_pivot_root' value]))
 if test "${NR_PIVOT_ROOT_VAL:-}"x != x; then
 AC_MSG_RESULT([$NR_PIVOT_ROOT_VAL])
-AC_CONFIG_FILES(procszoo/syscall_pivot_root_number.py)
 fi
 
 AC_SUBST(NR_SETNS_VAL)
@@ -24,7 +23,17 @@ AC_COMPUTE_INT([NR_SETNS_VAL], [__NR_setns], [[#include <syscall.h>]],
   AC_MSG_WARN([syscall.h: could not determine '__NR_setns' value]))
 if test "${NR_SETNS_VAL:-}"x != x; then
 AC_MSG_RESULT([$NR_SETNS_VAL])
-AC_CONFIG_FILES(procszoo/syscall_setns_number.py)
 fi
+
+AC_SUBST(ERRNO_EINVAL_VAL)
+AC_MSG_CHECKING(['errno EINVAL' value])
+AC_COMPUTE_INT([ERRNO_EINVAL_VAL], [EINVAL], [[#include <errno.h>]],
+  AC_MSG_WARN([errno.h: could not determine 'EINVAL' value]))
+if test "${ERRNO_EINVAL_VAL:-}"x != x; then
+AC_MSG_RESULT([$ERRNO_EINVAL_VAL])
+fi
+
+
+AC_CONFIG_FILES(procszoo/c_macros.py)
 
 AC_OUTPUT

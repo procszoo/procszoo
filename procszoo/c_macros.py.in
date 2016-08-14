@@ -1,0 +1,24 @@
+NR_PIVOT_ROOT = "@NR_PIVOT_ROOT_VAL@"
+NR_SETNS = "@NR_SETNS_VAL@"
+EINVAL = "@ERRNO_EINVAL_VAL@"
+
+SYSCALL_PIVOT_ROOT_AVAILABLE = True
+SYSCALL_SETNS_AVAILABLE = True
+
+try:
+    NR_PIVOT_ROOT = int(NR_PIVOT_ROOT)
+except ValueError:
+    SYSCALL_PIVOT_ROOT_AVAILABLE = False
+
+try:
+    NR_SETNS = int(NR_SETNS)
+except ValueError:
+    SYSCALL_SETNS_AVAILABLE = False
+
+try:
+    EINVAL = int(EINVAL)
+except ValueError:
+    raise RuntimeError("cannot determine the errno EINVAL value")
+
+__all__ = ["SYSCALL_PIVOT_ROOT_AVAILABLE", "SYSCALL_SETNS_AVAILABLE",
+               "NR_PIVOT_ROOT", "NR_SETNS", "EINVAL"]
