@@ -65,7 +65,7 @@ static void atfork_child_wrapper(void)
  * This function is not thread-safe!
  * int pthread_atfork(void (*prepare)(void), void (*parent)(void),
  *            void (*child)(void));
- * See man(3) pthread
+ * See pthread_atfork(3)
  */
 PyObject *atfork_pthread_atfork(PyObject *self, PyObject *args)
 {
