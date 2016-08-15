@@ -4,7 +4,8 @@ import sys
 from distutils.log import warn as printf
 from ctypes import c_char_p
 
-procszoo_mod_dir = os.path.abspath("%s/.." % os.path.dirname(__file__))
+this_file_absdir = os.path.dirname(os.path.abspath(__file__))
+procszoo_mod_dir = os.path.abspath("%s/.." % this_file_absdir)
 sys.path.append(procszoo_mod_dir)
 from procszoo.c_functions import *
 
