@@ -274,7 +274,7 @@ think that you need learn them all
 I test the *richard_parker* and these scripts in *tests/* on following
 archs
 
-- CentOS 6(x86\_64)
+- CentOS 6(x86)
 - CentOS 7(x86\_64)
 - Fedora 24(x86\_64)
 - ubuntu 12.04(armv7l)
