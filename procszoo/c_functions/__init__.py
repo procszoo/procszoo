@@ -7,6 +7,7 @@ import atexit
 import re
 from ctypes import (cdll, c_int, c_long, c_char_p, c_size_t, string_at,
                     create_string_buffer, c_void_p, CFUNCTYPE, pythonapi)
+from distutils.log import warn as printf
 try:
     from functools import reduce
 except ImportError:
