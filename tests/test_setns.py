@@ -17,9 +17,8 @@ if __name__ == "__main__":
         printf("net namespace unavailable, quit")
         sys.exit(1)
     ns_bind_dir = "/tmp/ns"
-    nscmd="%s/lib/procszoo/exit_immediately" % procszoo_mod_dir
     try:
-        spawn_namespaces(ns_bind_dir=ns_bind_dir, nscmd=nscmd)
+        spawn_namespaces(ns_bind_dir=ns_bind_dir, func=lambda: None)
     except NamespaceRequireSuperuserPrivilege as e:
         printf(e)
         sys.exit(1)

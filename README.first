@@ -1,9 +1,9 @@
-It's better to run ./configure first, or please remove
-procszoo/syscall_numbers.py file if the file exists.
+You must run 'make' before try anything for we using autoconf to
+support multiple archs.
 
 You need manually to run tests/test* scripts.
 
 If you are interested in how to use the procszoo module,
-the tests/* will show you more infos.
+the tests/* and bin/richard_parker will show you more infos.
 
 For more examples, please reference https://github.com/xning/procszoo/wiki
