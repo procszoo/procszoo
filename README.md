@@ -8,6 +8,7 @@ power to manage your processes by Linux namespaces.
 - [wiki](https://github.com/xning/procszoo/wiki)
 - [Goals](#goals)
 - [Requirements](#requirements)
+- [Install](#install)
 - [Building](#building)
 - [Try It](#try-it)
 - [Getting Your Feet Wet with the *procszoo* Module](#getting-your-feet-wet-with-the-procszoo-module)
@@ -37,9 +38,9 @@ and Linux kernel.
 Procszoo only requires Python standard libraries and the following packages
 
     # on RHEL/CentOS >= 6
-    sudo yum -y install autoconf gcc make glibc-headers
+    sudo yum -y install autoconf gcc make glibc-headers python-devel
     # Debain/Ubuntu
-    sudo apt-get -y install autoconf gcc make libc6-dev
+    sudo apt-get -y install autoconf gcc make libc6-dev python-dev
 
 On the RHEL/CentOS/Scientific Linux >= 6, because of SELinux
 causing some libffi bug, if you try python3, please disable SELinux as follows,
@@ -53,9 +54,17 @@ directory is 0400, this will cause trouble, hence change it
 
     chmod go+rx ${HOME}
 
+Install
+-------
+You can install the *procszoo* by [setuptools](https://pypi.python.org/pypi/setuptools)
+
+    git clone https://github.com/xning/procszoo.git
+    cd procszoo && sudo python setup.py
+
 Building
 --------
-All you need do are to clone it and do as follows,
+If you do't want to install it, then you can just clone it and do as follows
+to try it,
 
     git clone https://github.com/xning/procszoo.git
     cd procszoo && make
@@ -274,10 +283,10 @@ think that you need learn them all
 I test the *richard_parker* and these scripts in *tests/* on following
 archs
 
-- CentOS 6(x86)
-- CentOS 7(x86\_64)
-- Fedora 24(x86\_64)
-- ubuntu 12.04(armv7l)
-- Ubuntu 14.04(x86\_64)
-- Ubuntu 16.04(x86\_64)
-
+- [CentOS](https://www.centos.org) 6(x86)
+- [CentOS](https://www.centos.org) 7(x86\_64)
+- [Fedora](https://getfedora.org) 24(x86\_64)
+- [ubuntu](www.ubuntu.com) 12.04(armv7l)
+- [Ubuntu](www.ubuntu.com) 14.04(x86\_64)
+- [Ubuntu](www.ubuntu.com) 16.04(x86\_64)
+- [openSUSE](https://www.opensuse.org/) 42(x86_64) 

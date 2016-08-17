@@ -9,6 +9,7 @@ all: configure
 configure: configure.ac
 	$(Q)[ -e configure ] && autoreconf || autoconf
 clean:
+	$(Q)rm -rf build
 	$(Q)rm -f configure procszoo/c_functions/macros.py
 	$(Q)find . -name "*.pyc" | xargs rm -f
 	$(Q)find . -name "*~" | xargs rm -f
