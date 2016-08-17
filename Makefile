@@ -26,7 +26,7 @@ uninstall:
 	$(Q)rm -f "$(INSTALL_RECORD)"
 
 clean:
-	$(Q)rm -rf build
+	$(Q)rm -rf build/ dist/
 	$(Q)rm -f configure procszoo/c_functions/macros.py
 	$(Q)find . -name "*.pyc" | xargs rm -f
 	$(Q)find . -name "*~" | xargs rm -f
