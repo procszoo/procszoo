@@ -73,7 +73,7 @@ Now you can try it in an interactive shell as follows
     ./richard_parker
 
 If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6,
-you need *super user* privileges
+RHEL7/CentOS7, you need *super user* privileges
 
     sudo ./richard_parker
 
