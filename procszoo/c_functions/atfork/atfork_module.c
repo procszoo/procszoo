@@ -9,7 +9,7 @@
 #if PY_MAJOR_VERSION >= 3
 #define IS_PY3K 1
 #else
-#define ISPY3K  0
+#define IS_PY3K 0
 #endif
 
 static PyMethodDef atfork_methods[] = {
