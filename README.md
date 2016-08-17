@@ -7,6 +7,7 @@ power to manage your processes by Linux namespaces.
 ## Contents
 - [wiki](https://github.com/xning/procszoo/wiki)
 - [Goals](#goals)
+- [Resources](#resources)
 - [Requirements](#requirements)
 - [Install](#install)
 - [Building](#building)
@@ -31,6 +32,11 @@ Thanks a lot, you guys.
 
 Procszoo does not require new version Python (but we support python3, too)
 and Linux kernel.
+
+Resources
+---------
+
+- IRC channel: #procszoo on freenode.net
 
 ## Requirements
 ---------------
