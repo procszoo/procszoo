@@ -5,7 +5,7 @@ from distutils.log import warn as printf
 from setuptools import setup, find_packages, Extension, Command
 
 if 'build' in sys.argv:
-    os.system('make')
+    os.system('make configure')
 
 setup(
     name='procszoo',
