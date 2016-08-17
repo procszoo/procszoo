@@ -159,15 +159,18 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
         map_str = "%s\n" % "\n".join(maps)
         _map_id("gid_map", map_str, pid)
 
-def _find_my_init(paths=None, name=None, file_mode=None, dir_mode=None):
-    if paths is None:
+def _find_my_init(pathes=None, name=None, file_mode=None, dir_mode=None):
+    if pathes is None:
+        if 'PATH' in os.environ:
+            pathes = os.environ['PATH'].split(':')
+        else:
+            pathes = []
         cwd = os.path.dirname(os.path.abspath(__file__))
         absdir = os.path.abspath("%s/../.." % cwd)
-        paths = ["%s/lib/procszoo" % absdir,
-                 "%s/bin" % absdir,
-                 "/usr/local/lib/procszoo",
-                 "/usr/lib/procszoo"]
-
+        pathes += [path for path in ["%s/lib/procszoo" % absdir,
+                    "%s/bin" % absdir,
+                    "/usr/local/lib/procszoo",
+                    "/usr/lib/procszoo"] if os.path.exists(path)]
     if name is None:
         name = "my_init"
 
@@ -176,7 +179,7 @@ def _find_my_init(paths=None, name=None, file_mode=None, dir_mode=None):
     if dir_mode is None:
         dir_mode = os.R_OK
 
-    for path in paths:
+    for path in pathes:
         my_init = "%s/%s" % (path, name)
         if os.path.exists(my_init):
             if os.access(my_init, file_mode):
@@ -184,7 +187,7 @@ def _find_my_init(paths=None, name=None, file_mode=None, dir_mode=None):
 
     dirs_access_refused = []
     files_access_refused = []
-    for path in paths:
+    for path in pathes:
         my_init = "%s/%s" % (path, name)
         dirs = my_init.split('/')
         tmp_path = '/'
@@ -349,6 +352,7 @@ class Workbench(object):
         lambda: [hdr() for hdr in _CHILD_FORKHANDLERS if hdr])
 
     def __init__(self):
+        self.my_init = _find_my_init()
         self.functions = {}
         self.available_c_functions = []
         self.namespaces = Namespaces()
@@ -964,7 +968,7 @@ class Workbench(object):
 
                 if init_prog is None:
                     try:
-                        my_init = _find_my_init()
+                        my_init = self.my_init
                     except IOError as e:
                         printf(e)
                         sys.exit(1)
