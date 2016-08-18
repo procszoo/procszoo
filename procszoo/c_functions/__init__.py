@@ -964,38 +964,16 @@ class Workbench(object):
 
             if func is None:
                 if nscmd is None:
-                    nscmd = _find_shell()
-
-                if init_prog is None:
-                    try:
-                        my_init = self.my_init
-                    except IOError as e:
-                        printf(e)
-                        sys.exit(1)
-                    except NamespaceSettingError as e:
-                        printf(e)
-                        sys.exit(1)
-                    else:
-                        args = ["-c", my_init, "--skip-startup-files",
-                            "--skip-runit", "--quiet"]
-
-                    if isinstance(nscmd, list):
-                        args = args + nscmd
-                    else:
-                        args.append(nscmd)
-
-                    if "pid" in namespaces:
-                        init_prog = "python"
-                    else:
-                        init_prog = nscmd
-                        args = [nscmd]
+                    nscmd = [_find_shell()]
+                elif not isinstance(nscmd, list):
+                    nscmd = [nscmd]
+                if "pid" not in namespaces:
+                    args = nscmd
+                elif init_prog is not None:
+                    args = [init_prog] + nscmd
                 else:
-                    if "pid" in namespaces:
-                        args = [nscmd]
-                    else:
-                        init_prog = nscmd
-                        args = [nscmd]
-                os.execlp(init_prog, *args)
+                    args = [sys.executable, self.my_init, "--skip-startup-files", "--skip-runit", "--quiet"] + nscmd
+                os.execlp(args[0], *args)
             else:
                 if hasattr(func, '__call__'):
                     func()
