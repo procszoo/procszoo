@@ -37,6 +37,8 @@ import json
 from ..namespaces import *
 from .macros import *
 
+from .atfork import atfork as c_atfork
+
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
@@ -61,13 +63,12 @@ __all__ = [
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
 _ACLCHAR = 0x006
-_FORK_HANDLER_PROTOTYPE = CFUNCTYPE(None)
-_NULL_HANDLER_POINTER = _FORK_HANDLER_PROTOTYPE()
 _MAX_USERS_MAP = 5
 _MAX_GROUPS_MAP = 5
 _PREPARE_FORKHANDLERS = []
 _PARENT_FORKHANDLERS = []
 _CHILD_FORKHANDLERS = []
+_CALLERS_REGISTERED = False
 
 def _register_fork_handlers(prepare=None, parent=None, child=None):
     if prepare is not None:
@@ -77,15 +78,20 @@ def _register_fork_handlers(prepare=None, parent=None, child=None):
     if child is not None:
         _CHILD_FORKHANDLERS.append(child)
 
-def _register_prepare_fork_handler(handler):
-    _register_fork_handlers(prepare=handler)
+def _prepare_caller():
+    for hdr in _PREPARE_FORKHANDLERS:
+        if hdr:
+            hdr()
 
+def _parent_caller():
+    for hdr in _PARENT_FORKHANDLERS:
+        if hdr:
+            hdr()
 
-def _register_parent_fork_handler(handler):
-    _register_fork_handlers(parent=handler)
-
-def _register_child_fork_handler(handler):
-    _register_fork_handlers(child=handler)
+def _child_caller():
+    for hdr in _CHILD_FORKHANDLERS:
+        if hdr:
+            hdr()
 
 def _handler_registered_exist():
     return (_PREPARE_FORKHANDLERS
@@ -344,13 +350,6 @@ class Workbench(object):
     """
     class used as a singleton.
     """
-    _prepare_caller = _FORK_HANDLER_PROTOTYPE(
-        lambda: [hdr() for hdr in _PREPARE_FORKHANDLERS if hdr])
-    _parent_caller = _FORK_HANDLER_PROTOTYPE(
-        lambda: [hdr()for hdr in _PARENT_FORKHANDLERS if hdr])
-    _child_caller = _FORK_HANDLER_PROTOTYPE(
-        lambda: [hdr() for hdr in _CHILD_FORKHANDLERS if hdr])
-
     def __init__(self):
         self.my_init = _find_my_init()
         self.functions = {}
@@ -444,16 +443,6 @@ class Workbench(object):
                     "nofollow": "UMOUNT_NOFOLLOW",}
                 })
 
-        exported_name = "atfork"
-        self.functions[exported_name] = CFunction(
-            possible_c_func_names=["pthread_atfork", "__register_atfork"],
-            argtypes=[
-                _FORK_HANDLER_PROTOTYPE,
-                _FORK_HANDLER_PROTOTYPE,
-                _FORK_HANDLER_PROTOTYPE],
-            failed=lambda res: res == -1,
-            extra={"initlized": False})
-
         exported_name = "gethostname"
         self.functions[exported_name] = CFunction(
             exported_name = exported_name,
@@ -546,21 +535,14 @@ class Workbench(object):
                 parent()
                 ...
         """
-        hdr_prototype = _FORK_HANDLER_PROTOTYPE
-        _register_prepare_fork_handler(prepare)
-        _register_parent_fork_handler(parent)
-        _register_child_fork_handler(child)
+        global _CALLERS_REGISTERED
+        _register_fork_handlers(prepare=prepare, parent=parent, child=child)
 
-        cfunc = self.functions["atfork"]
-        if cfunc.extra["initlized"]:
-            return
-
-        if _handler_registered_exist():
-            ret = self._c_func_atfork(self._prepare_caller,
-                                      self._parent_caller,
-                                      self._child_caller)
-
-            cfunc.extra["initlized"] = True
+        if not _CALLERS_REGISTERED and _handler_registered_exist():
+            ret = c_atfork(_prepare_caller, _parent_caller, _child_caller)
+            if ret != 0:
+                raise RuntimeError("Failed to call atfork(), return code %s" % ret)
+            _CALLERS_REGISTERED = True
 
     def unregister_fork_handlers(self, prepare=None, parent=None,
                                      child=None, strict=False):
