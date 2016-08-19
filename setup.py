@@ -5,7 +5,7 @@ from distutils.log import warn as printf
 from setuptools import setup, find_packages, Extension, Command
 
 if 'build' in sys.argv:
-    os.system('make')
+    os.system('make configure')
 
 setup(
     name='procszoo',
@@ -19,10 +19,12 @@ setup(
     use_2to3=False,
     scripts=['bin/richard_parker', 'lib/procszoo/my_init'],
     ext_modules = [
-        Extension('procszoo.c_functions.atfork',
-                  ['procszoo/c_functions/atfork/atfork.c',
-                   'procszoo/c_functions/atfork/atfork_module.c'],
-                  include_dirs=['procszoo/c_functions/atfork']),
-    ],
+        Extension(name='procszoo.c_functions.atfork',
+            sources=['procszoo/c_functions/atfork/atfork.c',
+                'procszoo/c_functions/atfork/atfork_module.c'],
+            depends=['procszoo/c_functions/atfork/atfork.h'],
+            ),
+        ],
     package_data = {'': ['*.txt', '*.md', 'README.first']}
 )
+
