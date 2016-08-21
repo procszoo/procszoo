@@ -1,0 +1,2 @@
+include configure.ac Makefile README.first *.md *.txt
+recursive-include procszoo/c_functions *.in *.h

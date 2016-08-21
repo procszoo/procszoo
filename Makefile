@@ -3,14 +3,29 @@ ifeq ("$(origin V)", "command line")
 else
     Q=@
 endif
-all: configure
-	$(Q)./configure
+
+PYTHON := /usr/bin/env python
+
+MACROS_IN := procszoo/c_functions/macros.py.in
+MACROS_OUT := procszoo/c_functions/macros.py
+
+all: prepare build_ext
+
+prepare: $(MACROS_OUT)
+
+build_ext:
+	$(Q)$(PYTHON) ./setup.py build_ext --inplace
+
+clean:
+	$(Q)find . -depth -regex '.*/build\|.*/dist\|.*\.egg-info\|.*/__pycache__' -type d -exec rm -rf '{}' \;
+	$(Q)find . -regex '.*\.\(so\|pyc\)\|.*~' -type f -delete
+	$(Q)rm -rf configure "$(MACROS_OUT)" autom4te.cache config.log config.status
 
 configure: configure.ac
 	$(Q)[ -e configure ] && autoreconf || autoconf
-clean:
-	$(Q)rm -f configure procszoo/c_functions/macros.py
-	$(Q)find . -name "*.pyc" | xargs rm -f
-	$(Q)find . -name "*~" | xargs rm -f
-	$(Q)find . -name "__pycache__" -print0 | xargs -0 rm -rf
-	$(Q)rm -rf autom4te.cache config.log config.status
+
+$(MACROS_OUT): $(MACROS_IN) configure
+	$(Q)./configure
+
+.PHONY: all clean build_ext prepare
+

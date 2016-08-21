@@ -7,7 +7,9 @@ power to manage your processes by Linux namespaces.
 ## Contents
 - [wiki](https://github.com/xning/procszoo/wiki)
 - [Goals](#goals)
+- [Resources](#resources)
 - [Requirements](#requirements)
+- [Install](#install)
 - [Building](#building)
 - [Try It](#try-it)
 - [Getting Your Feet Wet with the *procszoo* Module](#getting-your-feet-wet-with-the-procszoo-module)
@@ -31,21 +33,20 @@ Thanks a lot, you guys.
 Procszoo does not require new version Python (but we support python3, too)
 and Linux kernel.
 
+Resources
+---------
+
+- IRC channel: #procszoo on freenode.net
+
 ## Requirements
 ---------------
 
 Procszoo only requires Python standard libraries and the following packages
 
     # on RHEL/CentOS >= 6
-    sudo yum -y install autoconf gcc make glibc-headers
+    sudo yum -y install autoconf gcc make glibc-headers python-devel
     # Debain/Ubuntu
-    sudo apt-get -y install autoconf gcc make libc6-dev
-
-On the RHEL/CentOS/Scientific Linux >= 6, because of SELinux
-causing some libffi bug, if you try python3, please disable SELinux as follows,
-
-    sudo sed -i -e 's/^SELINUX.*=.*/SELINUX=disabled/g' /etc/selinux/config
-    sudo reboot
+    sudo apt-get -y install autoconf gcc make libc6-dev python-dev
 
 If you will clone the *procszoo* in your home directory, On
 the RHEL/CentOS/Scientific Linux/Fedora, the default mode of your home
@@ -53,12 +54,27 @@ directory is 0400, this will cause trouble, hence change it
 
     chmod go+rx ${HOME}
 
+Install
+-------
+You can install the *procszoo* by [setuptools](https://pypi.python.org/pypi/setuptools)
+
+    git clone https://github.com/xning/procszoo.git
+    cd procszoo && sudo ./setup.py install
+
 Building
 --------
-All you need do are to clone it and do as follows,
+If you don't want to install it, then you can just clone it and do as follows
+to try it,
 
     git clone https://github.com/xning/procszoo.git
     cd procszoo && make
+
+By default, the above command will build the program for your default Python version.
+If you want to build for another Python version, just specify your desired Python interpretor
+through the `PYTHON` variable of the `make` command.
+Eg. To build for Python 3:
+
+    make PYTHON=/usr/bin/python3
 
 Try It
 ------
@@ -79,7 +95,7 @@ RHEL7/CentOS7, you need *super user* privileges
 
 And now, you can check sth that we are in namespaces
 
-* programs get samll pids, e.g., 1, 2, etc., and there is only *lo* device
+* programs get small pids, e.g., 1, 2, etc., and there is only *lo* device
 and it is down
 
         ps -ef
@@ -274,10 +290,10 @@ think that you need learn them all
 I test the *richard_parker* and these scripts in *tests/* on following
 archs
 
-- CentOS 6(x86)
-- CentOS 7(x86\_64)
-- Fedora 24(x86\_64)
-- ubuntu 12.04(armv7l)
-- Ubuntu 14.04(x86\_64)
-- Ubuntu 16.04(x86\_64)
-
+- [CentOS](https://www.centos.org) 6(x86)
+- [CentOS](https://www.centos.org) 7(x86\_64)
+- [Fedora](https://getfedora.org) 24(x86\_64)
+- [ubuntu](www.ubuntu.com) 12.04(armv7l)
+- [Ubuntu](www.ubuntu.com) 14.04(x86\_64)
+- [Ubuntu](www.ubuntu.com) 16.04(x86\_64)
+- [openSUSE](https://www.opensuse.org/) 42(x86_64) 
