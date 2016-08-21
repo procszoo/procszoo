@@ -3,9 +3,14 @@ import os
 import sys
 from distutils.log import warn as printf
 from setuptools import setup, find_packages, Extension, Command
+from setuptools.command.build_py import build_py
 
-if 'build' in sys.argv:
-    os.system('make configure')
+class ProcszooBuildPyCommand(build_py):
+    def run(self):
+        ret = os.system("make prepare")
+        if (ret != 0):
+            raise RuntimeError("Failed to call `make`, exit code: %s" % ret)
+        build_py.run(self)
 
 setup(
     name='procszoo',
@@ -26,6 +31,7 @@ setup(
             ),
         ],
     package_data={'': ['*.txt', '*.md', 'README.first']},
+    cmdclass={'build_py' : ProcszooBuildPyCommand},
     long_description="Procszoo aims to provide you a simple but complete tool "
         "and you can use it as a DSL or an embeded programming language "
         "which let you operate Linux namespaces by Python. "
