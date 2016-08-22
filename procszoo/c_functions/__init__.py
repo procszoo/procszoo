@@ -35,6 +35,7 @@ from copy import copy, deepcopy
 import json
 
 from ..namespaces import *
+from ..version import PROCSZOO_VERSION
 from .macros import *
 
 from .atfork import atfork as c_atfork
@@ -42,7 +43,7 @@ from .atfork import atfork as c_atfork
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
 
-__version__ = '0.97.1'
+__version__ = PROCSZOO_VERSION
 __all__ = [
     "cgroup_namespace_available", "ipc_namespace_available",
     "net_namespace_available", "mount_namespace_available",
