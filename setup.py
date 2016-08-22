@@ -7,7 +7,7 @@ from setuptools.command.build_py import build_py
 
 class ProcszooBuildPyCommand(build_py):
     def run(self):
-        ret = os.system("make prepare")
+        ret = os.system("make PYTHON=%s prepare" % sys.executable)
         if (ret != 0):
             raise RuntimeError("Failed to call `make`, exit code: %s" % ret)
         build_py.run(self)
