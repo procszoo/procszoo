@@ -44,9 +44,11 @@ Resources
 Procszoo only requires Python standard libraries and the following packages
 
     # on RHEL/CentOS >= 6
-    sudo yum -y install autoconf gcc make glibc-headers python-devel
+    sudo yum -y install autoconf gcc make glibc-headers
+    sudo yum -y install python-devel python-setuptools
     # Debain/Ubuntu
-    sudo apt-get -y install autoconf gcc make libc6-dev python-dev
+    sudo apt-get -y install autoconf gcc make libc6-dev
+    sudo appt-get -y install python-dev python-setuptools
 
 If you will clone the *procszoo* in your home directory, On
 the RHEL/CentOS/Scientific Linux/Fedora, the default mode of your home
