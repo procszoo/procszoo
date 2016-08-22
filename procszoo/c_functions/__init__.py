@@ -314,6 +314,9 @@ def _need_super_user_privilege(namespaces, ns_bind_dir,
         require_root_privilege = True
     if users_map or groups_map:
         require_root_privilege = True
+    if require_root_privilege:
+        euid = os.geteuid()
+        require_root_privilege = (euid != 0)
     return require_root_privilege
 
 class CFunction(object):
@@ -959,7 +962,8 @@ class Workbench(object):
                 elif init_prog is not None:
                     args = [init_prog] + nscmd
                 else:
-                    args = [sys.executable, self.my_init, "--skip-startup-files", "--skip-runit", "--quiet"] + nscmd
+                    args = [sys.executable, self.my_init, "--skip-startup-files",
+                            "--skip-runit", "--quiet"] + nscmd
                 os.execlp(args[0], *args)
             else:
                 if hasattr(func, '__call__'):
@@ -1057,11 +1061,9 @@ class Workbench(object):
         if unsupported_namespaces:
             raise UnavailableNamespaceFound(unsupported_namespaces)
 
-        if _need_super_user_privilege(namespaces, ns_bind_dir,
-                                          users_map, groups_map):
-            euid = os.geteuid()
-            if euid != 0:
-                raise NamespaceRequireSuperuserPrivilege()
+        if _need_super_user_privilege(namespaces, ns_bind_dir, users_map,
+                                      groups_map):
+            raise NamespaceRequireSuperuserPrivilege()
 
         if mountproc:
             if self.mount_namespace_available():
@@ -1125,15 +1127,14 @@ class Workbench(object):
         origin_args = _copy_args(namespaces, maproot, mountproc, mountpoint,
                                      ns_bind_dir, nscmd, propagation,
                                      negative_namespaces, setgroups, users_map,
-                                     groups_map, init_prog, func)
-
-        (namespaces, maproot, mountproc, mountpoint,
-             ns_bind_dir, propagation, negative_namespaces,
-             setgroups, users_map, groups_map
-        ) = self._fix_spawn_options(
+                                 groups_map, init_prog, func)
+        fixed_options = self._fix_spawn_options(
             namespaces, maproot, mountproc, mountpoint,
             ns_bind_dir, propagation, negative_namespaces,
             setgroups, users_map, groups_map)
+        (namespaces, maproot, mountproc, mountpoint,
+         ns_bind_dir, propagation, negative_namespaces,
+         setgroups, users_map, groups_map) = fixed_options
 
         r1, w1 = os.pipe()
         r2, w2 = os.pipe()
