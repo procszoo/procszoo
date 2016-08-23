@@ -18,7 +18,7 @@ build_ext:
 clean:
 	$(Q)find . -depth -regex '.*/build\|.*/dist\|.*\.egg-info\|.*/__pycache__' -type d -exec rm -rf '{}' \;
 	$(Q)find . -regex '.*\.\(so\|pyc\)\|.*~' -type f -delete
-	$(Q)rm -rf configure "$(CONFIGURE_OUT)" autom4te.cache config.log config.status
+	$(Q)rm -rf configure $(CONFIGURE_OUT) autom4te.cache config.log config.status
 
 configure: configure.ac
 	$(Q)[ -e configure ] && autoreconf || autoconf
