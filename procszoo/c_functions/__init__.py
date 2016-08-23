@@ -59,7 +59,7 @@ __all__ = [
     "show_namespaces_status", "gethostname", "sethostname",
     "getdomainname", "setdomainname", "show_available_c_functions",
     "get_namespace", "unregister_fork_handlers", "to_unicode", "to_bytes",
-    "__version__",]
+    "get_available_propagations", "__version__",]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
@@ -422,7 +422,8 @@ class Workbench(object):
                     "shared": ["MS_REC", "MS_SHARED"],
                     "bind": ["MS_BIND"],
                     "mount_proc": ["MS_NOSUID", "MS_NODEV", "MS_NOEXEC"],
-                    "unchanged": [],}
+                    "unchanged": [],},
+                "private_propagation": ['mount_proc', 'unchanged', 'bind'],
                 })
 
         exported_name = "umount"
@@ -526,6 +527,12 @@ class Workbench(object):
         else:
             raise AttributeError("'CFunction' object has no attribute '%s'"
                                      % name)
+
+    def get_available_propagations(self):
+        func_obj = self.functions['mount']
+        propagation = func_obj.extra['propagation']
+        private_propagation = func_obj.extra['private_propagation']
+        return [p for p in propagation.keys() if p not in private_propagation]
 
     def atfork(self, prepare=None, parent=None, child=None):
         """
@@ -954,7 +961,7 @@ class Workbench(object):
             os.close(r4)
 
             if func is None:
-                if nscmd is None:
+                if not nscmd:
                     nscmd = [_find_shell()]
                 elif not isinstance(nscmd, list):
                     nscmd = [nscmd]
@@ -1179,6 +1186,9 @@ class CFunctionUnknowSyscall(CFunctionNotFound):
 
 workbench = Workbench()
 del Workbench
+
+def get_available_propagations():
+    return workbench.get_available_propagations()
 
 def atfork(prepare=None, parent=None, child=None):
     return workbench.atfork(prepare, parent, child)

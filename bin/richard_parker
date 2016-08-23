@@ -2,7 +2,7 @@
 
 import os
 import sys
-from optparse import OptionParser
+from argparse import ArgumentParser
 import traceback
 from distutils.log import warn as printf
 
@@ -15,77 +15,68 @@ except ImportError:
     from procszoo.c_functions import *
 
 def get_options():
-    propagation_types = ["slave", "shared", "private", "unchange"]
-    progname = os.path.basename(sys.argv[0]) or 'richard_parker'
+    propagation_types = get_available_propagations()
+    prog = os.path.basename(sys.argv[0]) or 'richard_parker'
     project_url = "http://github.com/xning/procszoo"
-    description = """A simple cli to create new namespaces env,
-default it will enable each available namespaces."""
-    epilog_str = "%s is part of procszoo: %s"  % (progname, project_url)
-    parser = OptionParser(
-        usage="Usage: %prog [options] cmd_run_in_namespaces",
-        description=description)
-    parser.__dict__['origin_format_help'] = parser.format_help
-    parser.__dict__['format_help'] = lambda formatter=None: (
-                "%(origin_format_help)s\n%(epilog)s\n" % ({
-        'origin_format_help': parser.origin_format_help(formatter),
-        'epilog': epilog_str}))
-    parser.add_option("-n", "--namespace", action="append", dest="namespaces",
-                        help="namespace that should be create")
-    parser.add_option("-N", "--negative-namespace", action="append",
+    description = "%s, %s" % (
+        'A simple cli to create new namespaces env',
+        'default it will enable each available namespaces.')
+    parser = ArgumentParser(
+        usage="%s [options] [nscmd]" % prog,
+        description=description,
+        epilog="%s is part of procszoo: %s"  % (prog, project_url))
+
+    parser.add_argument('-v', '--version', action='version',
+                            version='%s %s' %  (prog, __version__))
+    parser.add_argument("-n", "--namespace", action="append",
+                            dest="namespaces",
+                            help="namespace that should be create")
+    parser.add_argument("-N", "--negative-namespace", action="append",
                           dest="negative_namespaces",
                           help="namespace that should not be create")
-    parser.add_option("-r", "--maproot", action="store_true", dest="maproot",
-                          default=True,
-                          help="""map current effective user/group to root/root,
-implies -n user""")
-    parser.add_option("--no-maproot", action="store_false",
-                        dest="maproot")
-    parser.add_option("-u", "--user-map", action="append", dest="users_map",
-                          type="string",
-                          help="user map settings, implies -n user")
-    parser.add_option("-g", "--group-map", action="append", dest="groups_map",
-                          type="string",
-                          help="group map settings, implies -n user")
-    parser.add_option("--init-program", action="store", dest="init_prog",
-                          type="string",
-                          help="replace the my_init program by yours")
-    parser.add_option(
-        "-s", "--setgroups", action="store", type="string",
-        dest="setgroups",
+    help_str = "map current effective user/group to root/root, implies -n user"
+    parser.add_argument("-r", "--maproot", action="store_true", dest="maproot",
+                            default=True, help=help_str)
+    parser.add_argument("--no-maproot", action="store_false", dest="maproot")
+    parser.add_argument("-u", "--user-map", action="append", dest="users_map",
+                          type=str, help="user map settings, implies -n user")
+    parser.add_argument("-g", "--group-map", action="append",
+                            dest="groups_map", type=str,
+                            help="group map settings, implies -n user")
+    parser.add_argument("--init-program", action="store", dest="init_prog",
+                            type=str,
+                            help="replace the my_init program by yours")
+    parser.add_argument(
+        "-s", "--setgroups", action="store", type=str, dest="setgroups",
         help="""control the setgroups syscall in user namespaces,
-        when setting to 'allow' will enable --no-maproot option and avoid --user-map
-        and --group-map options""")
-    parser.add_option("--mountproc", action="store_true", dest="mountproc",
-                        help="remount procfs mountpoin, implies --n mount",
+        when setting to 'allow' will enable --no-maproot option and avoid
+        --user-map and --group-map options""")
+    parser.add_argument("--mountproc", action="store_true", dest="mountproc",
+                        help="remount procfs mountpoin, implies -n mount",
                       default=True)
-    parser.add_option("--no-mountproc", action="store_false", dest="mountproc",
-                        help="do not remount procfs")
-    parser.add_option("--mountpoint", action="store", type="string",
+    parser.add_argument("--no-mountproc", action="store_false",
+                            dest="mountproc",
+                            help="do not remount procfs")
+    parser.add_argument("--mountpoint", action="store", type=str,
                         dest="mountpoint",
                         help="dir that the new procfs would be mounted to")
-    parser.add_option("-b", "--ns_bind_dir", action="store", type="string",
+    parser.add_argument("-b", "--ns-bind-dir", action="store", type=str,
                         dest="ns_bind_dir",
                         help="dir that the new namespaces would be mounted to")
-    parser.add_option(
-        "--propagation", action="store", type="string", dest="propagation",
-        help="modify mount propagation in mount namespace: %s" %
-        "|".join(propagation_types))
-    parser.add_option("-l", "--list", action="store_true",
+    parser.add_argument(
+        "--propagation", action="store", type=str, dest="propagation",
+        choices=propagation_types,
+        help="modify mount propagation in mount namespace")
+    parser.add_argument("-l", "--list", action="store_true",
                           dest="show_ns_status", default=False,
                           help="list namespaces status")
-    parser.add_option("-v", "--version", action="store_true", default=False,
-                          dest="show_version")
-    parser.add_option("--available-c-functions", action="store_true",
+    parser.add_argument("--available-c-functions", action="store_true",
                         dest="show_available_c_functions",
                         help="show available C functions",
                         default=False)
+    parser.add_argument('nscmd', nargs='*', action="store", default=None)
 
-    (options, args) = parser.parse_args()
-    return options, args
-
-def show_version_then_quit():
-    printf("version: %s\n" % __version__)
-    sys.exit(0)
+    return parser.parse_args()
 
 def show_namespaces_then_quit():
     for v in show_namespaces_status():
@@ -98,31 +89,27 @@ def show_available_c_functions_and_quit():
 
 def main():
     check_namespaces_available_status()
-    options, args = get_options()
-    nscmd = None
-    if args: nscmd = args
+    args = get_options()
 
-    if options.show_version:
-        show_version_then_quit()
-    if options.show_ns_status:
+    if args.show_ns_status:
         show_namespaces_then_quit()
-    if options.show_available_c_functions:
+    if args.show_available_c_functions:
         show_available_c_functions_and_quit()
 
     _exit_code = 0
     try:
         spawn_namespaces(
-            namespaces=options.namespaces,
-            negative_namespaces=options.negative_namespaces,
-            maproot=options.maproot,
-            mountproc=options.mountproc,
-            mountpoint=options.mountpoint,
-            ns_bind_dir=options.ns_bind_dir,
-            propagation=options.propagation,
-            nscmd=nscmd, users_map=options.users_map,
-            groups_map=options.groups_map,
-            setgroups=options.setgroups,
-            init_prog=options.init_prog)
+            namespaces=args.namespaces,
+            negative_namespaces=args.negative_namespaces,
+            maproot=args.maproot,
+            mountproc=args.mountproc,
+            mountpoint=args.mountpoint,
+            ns_bind_dir=args.ns_bind_dir,
+            propagation=args.propagation,
+            nscmd=args.nscmd, users_map=args.users_map,
+            groups_map=args.groups_map,
+            setgroups=args.setgroups,
+            init_prog=args.init_prog)
     except UnavailableNamespaceFound as e:
         printf(e)
         _exit_code = 1

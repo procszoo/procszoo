@@ -16,7 +16,7 @@ power to manage your processes by Linux namespaces.
 - [Networks](#networks)
 - [Docs](#docs)
 - [Known Issues](#known-issues)
-- [Exported Functions and Objects](#exported-functions-and-objects)
+- [Exported Functions, Objects, and Helpful CLI](#exported-functions-objects-and-helpful-cli)
 - [Test Platforms](#test-platforms)
 
 ## Goals
@@ -43,6 +43,7 @@ Resources
 
 Procszoo only requires Python standard libraries and the following packages
 
+    # if you want python3, pls install following package's python3 version
     # on RHEL/CentOS >= 6
     sudo yum -y install autoconf gcc make glibc-headers
     sudo yum -y install python-devel python-setuptools
@@ -50,18 +51,17 @@ Procszoo only requires Python standard libraries and the following packages
     sudo apt-get -y install autoconf gcc make libc6-dev
     sudo appt-get -y install python-dev python-setuptools
 
-If you will clone the *procszoo* in your home directory, On
-the RHEL/CentOS/Scientific Linux/Fedora, the default mode of your home
-directory is 0400, this will cause trouble, hence change it
-
-    chmod go+rx ${HOME}
-
 Install
 -------
-You can install the *procszoo* by [setuptools](https://pypi.python.org/pypi/setuptools)
+1. You can install the *procszoo* by [setuptools](https://pypi.python.org/pypi/setuptools)
 
-    git clone https://github.com/xning/procszoo.git
-    cd procszoo && sudo ./setup.py install
+        git clone https://github.com/xning/procszoo.git
+        cd procszoo && sudo ./setup.py install
+
+2. You can install the *procszoo* by [pip](https://pypi.python.org/pypi/pip)
+
+        sudo pip install procszoo
+
 
 Building
 --------
@@ -78,29 +78,32 @@ Eg. To build for Python 3:
 
     make PYTHON=/usr/bin/python3
 
+If you will clone the *procszoo* in your home directory, On
+the RHEL/CentOS/Scientific Linux/Fedora, the default mode of your home
+directory is 0400, this will cause trouble, hence change it
+
+    chmod go+rx ${HOME}
+
 Try It
 ------
-Now you can try it in an interactive shell as follows
+Now you can try it in an interactive shell as follows (we suppose you installed
+the *procszoo*)
 
-    cd bin
-    # what namsepaces are available?
-    ./richard_parker -l
-    # what C functions are available?
-    ./richard_parker --available-c-functions
-    # get an interactive shell
-    ./richard_parker
+    richard_parker -l                       # what namsepaces are available?
+    richard_parker --available-c-functions  # what C functions are available?
+    richard_parker                          # get an interactive shell
 
 If your Linux kernel doesn't support "user" namespaces, e.g., RHEL6/CentOS6,
 RHEL7/CentOS7, you need *super user* privileges
 
-    sudo ./richard_parker
+    sudo richard_parker
 
 And now, you can check sth that we are in namespaces
 
 * programs get small pids, e.g., 1, 2, etc., and there is only *lo* device
 and it is down
 
-        ps -ef
+        ps -ef 
         ifconfig -a
 
 * open another terminal, we can see that the namespaces entries are different
@@ -118,14 +121,7 @@ from our namespaces
 
 ## Getting Your Feet Wet with the *procszoo* module
 ---------------------------------------------------
-
-First, make sure that the *procszoo* module path in the *sys.path*. You
-can add the path as follows
-
-    import sys
-    sys.path.append(path_to_procszoo)
-
-then if you want to enable each namespaces that your kernel supports
+If you want to enable each namespaces that your kernel supports
 
     from procszoo.c_functions import *
     
@@ -157,7 +153,7 @@ interactive shell to make *veth* devices and add them to the new
 
 * create namespaces
 
-        sudo ./richard_parker --ns_bind_dir=/tmp/ns
+        sudo richard_parker --ns-bind-dir=/tmp/ns
 
 * in *richard_parker*, configure the *lo* device
 
@@ -238,8 +234,8 @@ namespace in a new terminal
     We need a more latest iproute package, to do that pls reference
     [here](https://github.com/xning/procszoo/wiki/How-to-build-iproute-and-python-pyroute2-that-supports-net-namespace%3F)
 
-## Exported Functions and Objects
---------------------------------
+## Exported Functions, Objects, and Helpful CLI
+-----------------------------------------------
 
 The *procszoo.utils* exported following functions and objects, and I don't
 think that you need learn them all
@@ -268,6 +264,7 @@ think that you need learn them all
     - to\_bytes
     - adjust\_namespaces
     - get_namespace
+    - get\_available\_propagations
     - show\_namespaces\_status
     - show\_available\_c\_functions
     - cgroup\_namespace\_available
@@ -286,6 +283,10 @@ think that you need learn them all
     - UnknownNamespaceFound
     - UnavailableNamespaceFound
     - NamespaceSettingError
+
+* Helpful CLI
+    - richard\_parker
+    - [setuid](https://github.com/xning/procszoo/wiki/The-setuid-CLI)
 
 ## Test Platforms
 ----------------
