@@ -26,7 +26,7 @@ setup(
     packages = find_packages(),
     url='https://github.com/xning/procszoo',
     use_2to3=False,
-    scripts=['bin/richard_parker', 'bin/setuid', 'lib/procszoo/my_init'],
+    scripts=['bin/richard_parker', 'bin/mamaji', 'lib/procszoo/my_init'],
     ext_modules=[
         Extension(name='procszoo.c_functions.atfork',
             sources=['procszoo/c_functions/atfork/atfork.c',

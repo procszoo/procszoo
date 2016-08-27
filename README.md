@@ -265,6 +265,17 @@ think that you need learn them all
     - adjust\_namespaces
     - get_namespace
     - get\_available\_propagations
+    - get\_uid\_from\_name\_or\_uid
+    - get\_gid\_from\_name\_or\_gid
+    - get\_uid\_by\_name
+    - get\_gid\_by\_name
+    - get\_name\_by\_uid
+    - get\_name\_by\_gid
+    - get\_current\_users\_and\_groups
+    - getresuid
+    - getresgid
+    - setresuid
+    - setresgid
     - show\_namespaces\_status
     - show\_available\_c\_functions
     - cgroup\_namespace\_available
@@ -286,7 +297,7 @@ think that you need learn them all
 
 * Helpful CLI
     - richard\_parker
-    - [setuid](https://github.com/xning/procszoo/wiki/The-setuid-CLI)
+    - [mamaji](https://github.com/xning/procszoo/wiki/mamaji-command-line)
 
 ## Test Platforms
 ----------------

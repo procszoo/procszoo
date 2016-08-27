@@ -6,7 +6,10 @@ import sys
 import atexit
 import re
 from ctypes import (cdll, c_int, c_long, c_char_p, c_size_t, string_at,
-                    create_string_buffer, c_void_p, CFUNCTYPE, pythonapi)
+                        create_string_buffer, POINTER, c_void_p, CFUNCTYPE,
+             pythonapi)
+import pwd
+import grp
 from distutils.log import warn as printf
 try:
     from functools import reduce
@@ -59,7 +62,11 @@ __all__ = [
     "show_namespaces_status", "gethostname", "sethostname",
     "getdomainname", "setdomainname", "show_available_c_functions",
     "get_namespace", "unregister_fork_handlers", "to_unicode", "to_bytes",
-    "get_available_propagations", "__version__",]
+    "get_available_propagations", "__version__", "find_shell",
+    "get_uid_from_name_or_uid", "get_gid_from_name_or_gid",
+    "get_uid_by_name","get_gid_by_name", "get_name_by_uid",
+    "get_name_by_gid", "get_current_users_and_groups",
+    "getresuid", "getresgid", "setresuid", "setresgid"]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
@@ -224,16 +231,6 @@ def _find_my_init(pathes=None, name=None, file_mode=None, dir_mode=None):
 
     raise NamespaceSettingError()
 
-def _find_shell(name="bash", shell=None):
-    if shell is not None:
-        return shell
-    if "SHELL" in os.environ:
-        return os.environ.get("SHELL")
-    for path in ["/bin", "/usr/bin", "/usr/loca/bin"]:
-        fpath = "%s/%s" % (path, name)
-        if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
-            return fpath
-    return "sh"
 
 def is_string_or_unicode(obj):
     if sys.version_info >= (3, 0):
@@ -464,9 +461,31 @@ class Workbench(object):
             argtypes=[c_char_p, c_size_t])
 
         exported_name = "setdomainname"
-        self.functions["setdomainname"] = CFunction(
+        self.functions[exported_name] = CFunction(
             exported_name=exported_name,
             argtypes=[c_char_p, c_size_t])
+
+        #begin: python 2.6 need functions
+        exported_name = 'getresuid'
+        self.functions[exported_name] = CFunction(
+            exported_name=exported_name,
+            argtypes=[POINTER(c_int), POINTER(c_int), POINTER(c_int)])
+
+        exported_name = 'getresgid'
+        self.functions[exported_name] = CFunction(
+            exported_name=exported_name,
+            argtypes=[POINTER(c_int), POINTER(c_int), POINTER(c_int)])
+
+        exported_name = 'setresuid'
+        self.functions[exported_name] = CFunction(
+            exported_name=exported_name,
+            argtypes=[c_int, c_int, c_int])
+
+        exported_name = 'setresgid'
+        self.functions[exported_name] = CFunction(
+            exported_name=exported_name,
+            argtypes=[c_int, c_int, c_int])
+        #end: python 2.6 need functions
 
         for func_name in self.functions:
             if func_name == 'syscall': continue
@@ -496,7 +515,6 @@ class Workbench(object):
             return func_obj.extra[syscall_name]
         else:
             raise CFunctionUnknowSyscall()
-
 
     def __getattr__(self, name):
         if name.startswith("_c_func_"):
@@ -533,6 +551,56 @@ class Workbench(object):
         propagation = func_obj.extra['propagation']
         private_propagation = func_obj.extra['private_propagation']
         return [p for p in propagation.keys() if p not in private_propagation]
+
+    def getresuid(self):
+        try:
+            os.getresuid
+        except AttributeError:
+            pass
+        else:
+            return os.getresuid()
+
+        ruid = c_int()
+        euid = c_int()
+        suid = c_int()
+        self._c_func_getresuid(ruid, euid, suid)
+
+        return (ruid.value, euid.value, suid.value)
+
+    def getresgid(self):
+        try:
+            os.getresgid
+        except AttributeError:
+            pass
+        else:
+            return os.getresgid()
+
+        rgid = c_int()
+        egid = c_int()
+        sgid = c_int()
+        self._c_func_getresgid(rgid, egid, sgid)
+
+        return (rgid.value, egid.value, sgid.value)
+
+    def setresuid(self, ruid, euid, suid):
+        try:
+            os.setresuid
+        except AttributeError:
+            pass
+        else:
+            return os.setresuid(ruid, euid, suid)
+
+        return self._c_func_setresuid(ruid, euid, suid)
+
+    def setresgid(self, rgid, egid, sgid):
+        try:
+            os.setresgid
+        except AttributeError:
+            pass
+        else:
+            return os.setresgid(rgid, egid, sgid)
+
+        return self._c_func_setresgid(rgid, egid, sgid)
 
     def atfork(self, prepare=None, parent=None, child=None):
         """
@@ -962,7 +1030,7 @@ class Workbench(object):
 
             if func is None:
                 if not nscmd:
-                    nscmd = [_find_shell()]
+                    nscmd = [find_shell()]
                 elif not isinstance(nscmd, list):
                     nscmd = [nscmd]
                 if "pid" not in namespaces:
@@ -1069,6 +1137,10 @@ class Workbench(object):
         if unsupported_namespaces:
             raise UnavailableNamespaceFound(unsupported_namespaces)
 
+        path = "/proc/self/setgroups"
+        if not os.path.exists(path) and setgroups is not None:
+            raise NamespaceSettingError('do not support setgroups')
+
         if _need_super_user_privilege(namespaces, ns_bind_dir, users_map,
                                       groups_map):
             raise NamespaceRequireSuperuserPrivilege()
@@ -1092,16 +1164,10 @@ class Workbench(object):
                 propagation = "private"
 
         path = "/proc/self/setgroups"
-        if self.user_namespace_available and "user" in namespaces:
-            if os.path.exists(path):
-                if setgroups is None:
+        if setgroups is None:
+            if self.user_namespace_available and "user" in namespaces:
+                if maproot and os.path.exists(path):
                     setgroups = "deny"
-            elif setgroups == "allow":
-                pass
-            else:
-                setgroups = None
-        else:
-            setgroups = None
 
         if "user" not in namespaces:
             maproot = False
@@ -1284,6 +1350,94 @@ def show_available_c_functions():
 def unregister_fork_handlers(prepare=None, parent=None,
                                  child=None, strict=False):
     return workbench.unregister_fork_handlers(prepare, parent, child, strict)
+
+def find_shell(name=None, shell=None):
+    if shell is not None:
+        return shell
+    if name is None:
+        name = 'bash'
+    fpath =pwd.getpwuid(os.geteuid()).pw_shell
+    if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
+        if os.path.basename(fpath).endswith('sh'):
+            return fpath
+
+    if "SHELL" in os.environ:
+        return os.environ.get("SHELL")
+    for path in ["/bin", "/usr/bin", "/usr/loca/bin"]:
+        fpath = "%s/%s" % (path, name)
+        if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
+            return fpath
+    return "sh"
+
+def getresuid():
+    return workbench.getresuid()
+
+def getresgid():
+    return workbench.getresgid()
+
+
+def setresuid(ruid, euid, suid):
+    return workbench.setresuid(ruid, euid, suid)
+
+
+def setresgid(rgid, egid, sgid):
+    return workbench.setresgid(rgid, egid, sgid)
+
+
+def get_uid_from_name_or_uid(user_or_uid):
+    try:
+        uid = int(user_or_uid)
+    except ValueError:
+        uid = pwd.getpwnam(user_or_uid).pw_uid
+    return uid
+
+
+def get_gid_from_name_or_gid(group_or_gid):
+    try:
+        gid = int(group_or_gid)
+    except ValueError:
+        gid = grp.getgrnam(group_or_gid).gr_gid
+    return gid
+
+
+def get_uid_by_name(user):
+    return pwd.getpwnam(user).pw_uid
+
+
+def get_gid_by_name(group):
+    return grp.getgrnam(group).gr_gid
+
+
+def get_name_by_uid(uid):
+    return pwd.getpwuid(uid).pw_name
+
+
+def get_name_by_gid(gid):
+    return grp.getgrgid(gid).gr_name
+
+
+def get_current_users_and_groups(displayer=None):
+    ruid, euid, suid = getresuid()
+    rgid, egid, sgid = getresgid()
+    supplementary_groups = os.getgroups()
+
+    _supplementary_groups = []
+    for _id in supplementary_groups:
+        _name = get_name_by_gid(_id)
+        _supplementary_groups.append({'name': _name, 'id': _id})
+
+    return {
+        'users': {
+            'real user': {'name': get_name_by_uid(ruid), 'id': ruid},
+            'effective user': {'name': get_name_by_uid(euid), 'id': euid},
+            'saved user': {'name': get_name_by_uid(suid), 'id': suid},},
+        'groups': {
+            'real group': {'name': get_name_by_gid(rgid), 'id': rgid},
+            'effective group': {'name': get_name_by_gid(rgid), 'id': rgid},
+            'saved group': {'name': get_name_by_gid(rgid), 'id': rgid},},
+        'supplementary_groups': _supplementary_groups,
+        }
+
 
 if __name__ == "__main__":
     try:
