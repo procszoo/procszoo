@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+
+import os
+import sys
+
+try:
+    from procszoo.scripts import mamaji
+except ImportError:
+    this_file_absdir = os.path.dirname(os.path.abspath(__file__))
+    procszoo_mod_dir = os.path.abspath('%s/..' % this_file_absdir)
+    sys.path.append(procszoo_mod_dir)
+    from procszoo.scripts import mamaji
+
+
+if __name__ == '__main__':
+    mamaji.main()

@@ -2,7 +2,6 @@
 
 import os
 import sys
-from distutils.log import warn as printf
 
 try:
     from procszoo.c_functions import *
@@ -11,6 +10,7 @@ except ImportError:
     procszoo_mod_dir = os.path.abspath("%s/.." % this_file_absdir)
     sys.path.append(procszoo_mod_dir)
     from procszoo.c_functions import *
+from procszoo.utils import *
 
 if __name__ == "__main__":
     def procinfo(str):

@@ -2,7 +2,6 @@
 import os
 import sys
 import random
-from distutils.log import warn as printf
 
 try:
     from procszoo.c_functions import *
@@ -11,19 +10,20 @@ except ImportError:
     procszoo_mod_dir = os.path.abspath("%s/.." % this_file_absdir)
     sys.path.append(procszoo_mod_dir)
     from procszoo.c_functions import *
+from procszoo.utils import *
 
 if __name__ == "__main__":
     if "setns" not in show_available_c_functions():
-        printf("setns func unavailable, quit")
+        warn("setns func unavailable, quit")
         sys.exit(1)
     elif not net_namespace_available():
-        printf("net namespace unavailable, quit")
+        warn("net namespace unavailable, quit")
         sys.exit(1)
     ns_bind_dir = "/tmp/ns"
     try:
         spawn_namespaces(ns_bind_dir=ns_bind_dir, func=lambda: None)
     except NamespaceRequireSuperuserPrivilege as e:
-        printf(e)
+        warn(e)
         sys.exit(1)
 
     pid = os.fork()
@@ -33,7 +33,7 @@ if __name__ == "__main__":
         try:
             setns(path="/tmp/ns/net", namespace="net")
         except NamespaceRequireSuperuserPrivilege as e:
-            printf(e)
+            warn(e)
             sys.exit(1)
         else:
             os.system("ifconfig -a")
