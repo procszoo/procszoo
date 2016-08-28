@@ -16,6 +16,9 @@ except ImportError:
 
 def get_options():
     propagation_types = get_available_propagations()
+    available_namespaces = [
+        ns_status[0] for ns_status in show_namespaces_status()
+                                 if ns_status[1]]
     prog = os.path.basename(sys.argv[0]) or 'richard_parker'
     project_url = "http://github.com/xning/procszoo"
     description = "%s, %s" % (
@@ -29,25 +32,28 @@ def get_options():
     parser.add_argument('-v', '--version', action='version',
                             version='%s %s' %  (prog, __version__))
     parser.add_argument("-n", "--namespace", action="append",
-                            dest="namespaces",
+                            dest="namespaces", choices=available_namespaces,
                             help="namespace that should be create")
     parser.add_argument("-N", "--negative-namespace", action="append",
                           dest="negative_namespaces",
+                          choices=available_namespaces,
                           help="namespace that should not be create")
     help_str = "map current effective user/group to root/root, implies -n user"
     parser.add_argument("-r", "--maproot", action="store_true", dest="maproot",
                             default=True, help=help_str)
     parser.add_argument("--no-maproot", action="store_false", dest="maproot")
     parser.add_argument("-u", "--user-map", action="append", dest="users_map",
+                            metavar='name_or_uid',
                           type=str, help="user map settings, implies -n user")
     parser.add_argument("-g", "--group-map", action="append",
-                            dest="groups_map", type=str,
+                            dest="groups_map", type=str, metavar='name_or_gid',
                             help="group map settings, implies -n user")
     parser.add_argument("--init-program", action="store", dest="init_prog",
                             type=str,
                             help="replace the my_init program by yours")
     parser.add_argument(
         "-s", "--setgroups", action="store", type=str, dest="setgroups",
+        choices=['allow', 'deny'],
         help="""control the setgroups syscall in user namespaces,
         when setting to 'allow' will enable --no-maproot option and avoid
         --user-map and --group-map options""")

@@ -148,8 +148,35 @@ def _map_id(map_file, map=None, pid=None):
     else:
         raise RuntimeError("%s: No such file" % path)
 
-def _covert_map_to_tuple(_map):
-    return tuple([int(v) for v in _map.expandtabs().split(' ') if v != ' '])
+def _covert_map_to_tuple(_map, map_type=None):
+    if map_type is None:
+        map_type = 'user'
+
+    if map_type not in ['group', 'user']:
+        raise RuntimeError()
+
+    _list = [v for v in _map.expandtabs().split(' ') if v != ' ']
+
+    if len(_list) < 2 or len(_list) > 3:
+        raise NamespaceSettingError()
+
+    if len(_list) == 2:
+        _range = 1
+    else:
+        try:
+            _range = int(_list[2])
+        except ValueError:
+            raise NamespaceSettingError()
+
+    if map_type == 'user':
+        inter_id = get_uid_from_name_or_uid(_list[0])
+        outer_id = get_uid_from_name_or_uid(_list[1])
+    elif map_type == 'group':
+        inter_id = get_gid_from_name_or_gid(_list[0])
+        outer_id = get_gid_from_name_or_gid(_list[1])
+
+    return tuple([inter_id, outer_id, _range])
+
 
 def _i_am_superuser():
     return (os.geteuid() == 0)
@@ -164,11 +191,11 @@ def _accetable_user_map(user_map):
 
     ruid, euid, suid = getresuid()
 
-    inside_id, outside_id, _range = _covert_map_to_tuple(user_map)
+    inter_id, outer_id, _range = _covert_map_to_tuple(user_map, 'user')
 
     if _i_am_not_superuser():
-        _id = outside_id
-        _max_id = outside_id + _range
+        _id = outer_id
+        _max_id = outer_id + _range
         if _range > 3:
             return False
         while _id < _max_id:
@@ -184,11 +211,11 @@ def _accetable_group_map(group_map):
 
     rgid, egid, sgid = getresgid()
 
-    inside_id, outside_id, _range = _covert_map_to_tuple(group_map)
+    inter_id, outer_id, _range = _covert_map_to_tuple(group_map, 'group')
 
     if _i_am_not_superuser():
-        _id = outside_id
-        _max_id = outside_id + _range
+        _id = outer_id
+        _max_id = outer_id + _range
         if _range > 3:
             return False
         while _id < _max_id:
@@ -204,26 +231,28 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
         return
 
     if users_map is None:
-        maps = ["0 %d 1" % os.geteuid()]
+        _maps = ["0 %d 1" % os.geteuid()]
     else:
-        maps = users_map
-    if maps:
-        if len(maps) > _MAX_USERS_MAP:
+        _maps = users_map
+
+    if _maps:
+        if len(_maps) > _MAX_USERS_MAP:
             raise NamespaceSettingError()
-        map_str = "%s\n" % "\n".join(maps)
+        map_str = "%s\n" % "\n".join(_maps)
         try:
             _map_id("uid_map", map_str, pid)
         except IOError:
             raise NamespaceRequireSuperuserPrivilege()
 
     if groups_map is None:
-        maps = ["0 %d 1" % os.getegid()]
+        _maps = ["0 %d 1" % os.getegid()]
     else:
-        maps = groups_map
-    if maps:
-        if len(maps) > _MAX_GROUPS_MAP:
+        _maps = groups_map
+
+    if _maps:
+        if len(_maps) > _MAX_GROUPS_MAP:
             raise NamespaceSettingError()
-        map_str = "%s\n" % "\n".join(maps)
+        map_str = "%s\n" % "\n".join(_maps)
         try:
             _map_id("gid_map", map_str, pid)
         except IOError:
@@ -1234,14 +1263,27 @@ class Workbench(object):
              mountproc = False
 
         if users_map:
+            _users_map = []
             for _map in users_map:
+                inter_id, outer_id, _range = _covert_map_to_tuple(_map, 'user')
+                _users_map.append('%d %d %d' % (inter_id, outer_id, _range))
+
+            for _map in _users_map:
                 if not _accetable_user_map(_map):
                     raise NamespaceRequireSuperuserPrivilege()
+            users_map = _users_map
 
         if groups_map:
+            _groups_map = []
             for _map in groups_map:
+                inter_id, outer_id, _range = _covert_map_to_tuple(_map,
+                                                                      'group')
+                _groups_map.append('%d %d %d' % (inter_id, outer_id, _range))
+
+            for _map in _groups_map:
                 if not _accetable_group_map(_map):
                     raise NamespaceRequireSuperuserPrivilege()
+            groups_map = _groups_map
 
         return (namespaces, maproot, mountproc, mountpoint,
                     ns_bind_dir, propagation, negative_namespaces,
