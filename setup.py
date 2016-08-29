@@ -16,6 +16,10 @@ class ProcszooBuildPyCommand(build_py):
             raise RuntimeError("Failed to call `make`, exit code: %s" % ret)
         build_py.run(self)
 
+def python_entrypoint(executable, func):
+    suffixes = ['', '-' + sys.version[:1], '-' + sys.version[:3]]
+    return [ "%s = %s" % (executable + suffix, func) for suffix in suffixes]
+
 setup(
     name='procszoo',
     version=version,
@@ -26,7 +30,12 @@ setup(
     packages = find_packages(),
     url='https://github.com/xning/procszoo',
     use_2to3=False,
-    scripts=['bin/richard_parker', 'bin/setuid', 'lib/procszoo/my_init'],
+    scripts=['bin/setuid', 'lib/procszoo/my_init'],
+    entry_points={
+        'console_scripts':[
+            python_entrypoint("richard_parker", "procszoo.scripts.richard_parker:main")
+            ]
+        },
     ext_modules=[
         Extension(name='procszoo.c_functions.atfork',
             sources=['procszoo/c_functions/atfork/atfork.c',
