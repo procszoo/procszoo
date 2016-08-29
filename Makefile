@@ -26,5 +26,27 @@ configure: configure.ac
 $(CONFIGURE_OUT): configure $(CONFIGURE_OUT:%=%.in)
 	$(Q)./configure
 
-.PHONY: all clean build_ext prepare
+# Packaging
+VERSION := $(shell tr -d '\n' < VERSION)
+
+dist:
+	$(Q)$(PYTHON) ./setup.py sdist
+
+RPMBUILD_TOPDIR := build/rpmbuild
+RPM_OUTDIR := dist
+SRPM_OUTDIR := dist
+
+srpm: dist
+	$(Q)cp VERSION dist/VERSION
+	$(Q)mkdir -p "$(RPMBUILD_TOPDIR)" "$(SRPM_OUTDIR)"
+	$(Q)rpmbuild --define "_topdir $(shell pwd)/$(RPMBUILD_TOPDIR)" --clean -ts "dist/procszoo-$(VERSION).tar.gz"
+	$(Q)cp -a "$(RPMBUILD_TOPDIR)"/SRPMS/*.rpm "$(SRPM_OUTDIR)"
+
+rpm: dist
+	$(Q)cp VERSION dist/VERSION
+	$(Q)mkdir -p "$(RPMBUILD_TOPDIR)" "$(RPM_OUTDIR)" "$(SRPM_OUTDIR)"
+	$(Q)rpmbuild --define "_topdir $(shell pwd)/$(RPMBUILD_TOPDIR)" --clean -ta "dist/procszoo-$(VERSION).tar.gz"
+	$(Q)cp -a "$(RPMBUILD_TOPDIR)"/{SRPMS,RPMS/*}/*.rpm "$(SRPM_OUTDIR)"
+
+.PHONY: all clean build_ext prepare dist srpm rpm
 
