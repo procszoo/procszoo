@@ -289,6 +289,7 @@ def main():
 
     if not args.do_fork:
         change_users_and_groups(mamaji_data)
+        # if target_cmd is None, do nothing
         if target_cmd:
             os.execlp(target_cmd[0], *target_cmd)
         sys.exit(0)
@@ -304,7 +305,8 @@ def main():
         change_users_and_groups(mamaji_data)
         os.execlp(target_cmd[0], *target_cmd)
     else:
-        os.waitpid(pid, 0)
+        status = os.wait4(pid, 0)[1] >> 8
+        sys.exit(status)
 
 
 if __name__ == '__main__':
