@@ -54,8 +54,13 @@ if __name__ == "__main__":
     if euid != 0:
         warn("need superuser privilege, quit")
         sys.exit(1)
+
+    maproot=False
+    if user_namespace_available():
+        maproot=True
+
     try:
-        spawn_namespaces(func=try_pivot_root)
+        spawn_namespaces(maproot=maproot, func=try_pivot_root)
     except NamespaceRequireSuperuserPrivilege as e:
         warn(e)
         sys.exit(1)

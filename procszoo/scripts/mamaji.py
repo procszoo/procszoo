@@ -52,37 +52,37 @@ def get_options():
         '-n', '--no-fork', action='store_false', dest='do_fork')
     parser.add_argument(
         '-u', '--user', action='store', type=str, dest='user',
-        help='run cmd as this user')
+        metavar='user', help='run cmd as this user')
     parser.add_argument(
         '-g', '--group', action='store', type=str, dest='group',
-        help='run cmd as this group')
+        metavar='group', help='run cmd as this group')
     parser.add_argument(
         '-G', '--supplementary-group', action='append',
-        type=str, dest='groups',
+        type=str, dest='groups', metavar='group',
         help='run cmd as this group as a supplementary group')
     parser.add_argument(
         '-l', '--list', action='store_true', dest='show_id',
         help='display current user and groups info')
     parser.add_argument(
         '--real-user', action='store', type=str, dest='real_user',
-        help='run cmd as this user as the real user')
+        metavar='user', help='run cmd as this user as the real user')
     parser.add_argument(
         '--effective-user', action='store', type=str,
-        dest='effective_user',
+        dest='effective_user', metavar='user',
         help='run cmd as this user as the effective user')
     parser.add_argument(
         '--saved-user', action='store', type=str, dest='saved_user',
-        help='run cmd as this user as the saved user')
+        metavar='user', help='run cmd as this user as the saved user')
     parser.add_argument(
         '--real-group', action='store', type=str, dest='real_group',
-        help='run cmd as this group as the real group')
+        metavar='group', help='run cmd as this group as the real group')
     parser.add_argument(
          '--effective-group', action='store',
-         type=str, dest='effective_group',
+         type=str, dest='effective_group', metavar='group',
          help='run cmd as this group as the effective group')
     parser.add_argument(
         '--saved-group', action='store', type=str, dest='saved_group',
-        help='run cmd as this group as the saved group')
+        metavar='group', help='run cmd as this group as the saved group')
     parser.add_argument('cmd', nargs=REMAINDER, action='store', default=None)
 
     return parser.parse_args()

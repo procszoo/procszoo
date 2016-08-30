@@ -12,8 +12,12 @@ except ImportError:
 from procszoo.utils import *
 
 if __name__ == "__main__":
+    maproot=False
+    if user_namespace_available():
+        maproot=True
+
     try:
-        spawn_namespaces(func=lambda: None)
+        spawn_namespaces(maproot=maproot, func=lambda: None)
     except NamespaceRequireSuperuserPrivilege as e:
         warn(e)
         sys.exit(1)

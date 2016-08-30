@@ -20,9 +20,18 @@ if __name__ == "__main__":
         warn("net namespace unavailable, quit")
         sys.exit(1)
     ns_bind_dir = "/tmp/ns"
+
+    maproot=False
+    if user_namespace_available():
+        maproot=True
+
     try:
-        spawn_namespaces(ns_bind_dir=ns_bind_dir, func=lambda: None)
+        spawn_namespaces(ns_bind_dir=ns_bind_dir, func=lambda: None,
+                             maproot=maproot)
     except NamespaceRequireSuperuserPrivilege as e:
+        warn(e)
+        sys.exit(1)
+    except Exception as e:
         warn(e)
         sys.exit(1)
 

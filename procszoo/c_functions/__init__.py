@@ -3,6 +3,7 @@
 
 import os
 import sys
+import resource
 import atexit
 import re
 from ctypes import (cdll, c_int, c_long, c_char_p, c_size_t, string_at,
@@ -70,7 +71,7 @@ __all__ = [
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
-_ACLCHAR = 0x006
+_ACKCHAR = 0x006
 _MAX_USERS_MAP = 5
 _MAX_GROUPS_MAP = 5
 _PREPARE_FORKHANDLERS = []
@@ -364,41 +365,453 @@ def to_bytes(unicode_or_bytes_or_str):
     else:
         return _to_str(unicode_or_bytes_or_str)
 
-def _copy_args(namespaces=None, maproot=True, mountproc=True,
-                   mountpoint=None, ns_bind_dir=None, nscmd=None,
-                   propagation=None, negative_namespaces=None,
-                   setgroups=None, users_map=None, groups_map=None,
-                   init_prog=None, func=None):
-    _args = deepcopy({
-        "namespaces": namespaces, "maproot": maproot,
-        "mountproc": mountproc, "mountpoint": mountpoint,
-        "ns_bind_dir": ns_bind_dir, "nscmd": nscmd,
-        "propagation": propagation,
-        "negative_namespaces": negative_namespaces,
-        "setgroups": setgroups, "users_map": users_map,
-        "groups_map": groups_map, "init_prog": init_prog,
-        })
-    if func is None or not hasattr(func, '__name__'):
-        func_name = ''
-    else:
-        func_name = func.__name__
 
-    _args['func'] = func_name
-    return _args
+class SpawnNamespacesConfig(object):
+    def __init__(self, namespaces=None, maproot=True, mountproc=True,
+                mountpoint=None, ns_bind_dir=None, nscmd=None,
+                propagation=None, negative_namespaces=None,
+                setgroups=None, users_map=None, groups_map=None,
+                init_prog=None, func=None,
+                interactive=None,
+                strict=None,
+                extra=None,
+                pid=None,
+                top_halves_child_pid=None,
+                bottom_halves_child_pid=None,
+                parse_conf=None,
+                top_halves_before_sync=None,
+                top_halves_half_sync=None,
+                top_halves_after_sync=None,
+                bottom_halves_before_fork=None,
+                bottom_halves_before_sync=None,
+                bottom_halves_half_sync=None,
+                bottom_halves_after_sync=None,
+                top_halves_entry_point=None,
+                bottom_halves_entry_point=None,
+                     entry_point=None):
+        if namespaces is None:
+            self.namespaces = adjust_namespaces()
+        else:
+            self.namespaces = namespaces
+        self.maproot = maproot
+        self.mountproc = mountproc
+        if mountpoint is None:
+            self.mountpoint = '/proc'
+        else:
+            self.mountpoint = mountpoint
+        self.ns_bind_dir = ns_bind_dir
+        self.nscmd = nscmd
+        self.propagation = propagation
+        self.negative_namespaces = negative_namespaces
+        self.setgroups = setgroups
+        if setgroups is not None and setgroups not in ['allow', 'deny']:
+            raise NamespaceSettingError()
+        self.users_map = users_map
+        self.groups_map = groups_map
+        self.init_prog = init_prog
+        self.my_init = _find_my_init()
+        self.func = func
+        if interactive is None:
+            self.interactive = True
+        else:
+            self.interactive=interactive
+        if strict is None:
+            self.strict = True
+        else:
+            self.strict = strict
 
-def _need_super_user_privilege(namespaces, ns_bind_dir,
-                                   users_map, groups_map):
-    require_root_privilege = False
-    if not user_namespace_available():
-        require_root_privilege = True
-    if namespaces and "user" not in namespaces:
-        require_root_privilege = True
-    if ns_bind_dir:
-        require_root_privilege = True
-    if require_root_privilege:
-        euid = os.geteuid()
-        require_root_privilege = (euid != 0)
-    return require_root_privilege
+        self.extra = extra
+
+        if pid is None:
+            self.pid = os.getpid()
+        else:
+            self.pid = pid
+        self.top_halves_child_pid = top_halves_child_pid
+        self.bottom_halves_child_pid = bottom_halves_child_pid
+
+        if parse_conf is None:
+            self.parse_conf = self._default_handler_to_parse_conf
+        else:
+            if not getattr(parse_conf, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'parse_conf', parse_conf)
+
+        if top_halves_before_sync is None:
+            self.top_halves_before_sync = self._default_top_halves_before_sync
+        else:
+            if not getattr(top_halves_before_sync, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'top_halves_before_sync', top_halves_before_sync)
+
+        if top_halves_half_sync is None:
+            self.top_halves_half_sync = self._default_top_halves_half_sync
+        else:
+            if not getattr(top_halves_half_sync, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'top_halves_half_sync', top_halves_half_sync)
+
+        if top_halves_after_sync is None:
+            self.top_halves_after_sync = self._default_null_handler
+        else:
+            if not getattr(top_halves_after_sync, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'top_halves_after_sync', top_halves_after_sync)
+
+        if bottom_halves_before_fork is None:
+            self.bottom_halves_before_fork = self._default_bottom_halves_before_fork
+        else:
+            if not getattr(bottom_halves_before_fork, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'bottom_halves_before_fork', bottom_halves_before_fork)
+
+        if bottom_halves_before_sync is None:
+            self.bottom_halves_before_sync = self._default_bottom_halves_before_sync
+        else:
+            if not getattr(bottom_halves_before_sync, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'bottom_halves_before_sync', bottom_halves_before_sync)
+
+        if bottom_halves_half_sync is None:
+            self.bottom_halves_half_sync = self._default_null_handler
+        else:
+            if not getattr(bottom_halves_half_sync, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'bottom_halves_half_sync', bottom_halves_half_sync)
+
+        if bottom_halves_after_sync is None:
+            self.bottom_halves_after_sync = self._default_bottom_halves_after_sync
+        else:
+            if not getattr(bottom_halves_after_sync, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'bottom_halves_after_sync', bottom_halves_after_sync)
+
+        if top_halves_entry_point is None:
+            self.top_halves_entry_point = self._default_top_halves_entry_point
+        else:
+            if not getattr(top_halves_entry_point, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'top_halves_entry_point', top_halves_entry_point)
+
+        if bottom_halves_entry_point is None:
+            self.bottom_halves_entry_point = self._default_bottom_halves_entry_point
+        else:
+            if not getattr(bottom_halves_entry_point, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'bottom_halves_entry_point', bottom_halves_entry_point)
+
+        if entry_point is None:
+            self.entry_point = self._default_entry_point
+        else:
+            if not getattr(entry_point, '__call__'):
+                raise NamespaceSettingError('handler must be a callable')
+            setattr(self, 'entry_point', entry_point)
+
+    def _default_entry_point(self, *args, **kwargs):
+        self.parse_conf(*args, **kwargs)
+
+        r1, w1 = os.pipe()
+        r2, w2 = os.pipe()
+
+        pid = _fork()
+
+        if pid == 0:
+            self.bottom_halves_entry_point(r1, w1, r2, w2, *args, **kwargs)
+            sys.exit(0)
+        elif pid > 0:
+            self.top_halves_entry_point(r1, w1, r2, w2, pid, *args, **kwargs)
+        else:
+            sys.exit(0)
+
+    def _default_top_halves_entry_point(self, r1, w1, r2, w2, pid, *args, **kwargs):
+        self.top_halves_child_pid = pid
+
+        self.top_halves_before_sync(*args, **kwargs)
+
+        os.close(w1)
+        os.close(r2)
+
+        child_pid = os.read(r1, 64)
+        os.close(r1)
+        try:
+            child_pid = int(child_pid)
+        except ValueError:
+            raise RuntimeError("failed to get the child pid")
+
+        self.bottom_halves_child_pid = child_pid
+
+        self.top_halves_half_sync(*args, **kwargs)
+
+        os.write(w2, to_bytes(chr(_ACKCHAR)))
+        os.close(w2)
+
+        self.top_halves_after_sync(*args, **kwargs)
+
+        if self.interactive:
+            os.waitpid(self.top_halves_child_pid, 0)
+        else:
+            sys.exit(0)
+
+    def _default_bottom_halves_entry_point(self, r1, w1, r2, w2, *args, **kwargs):
+        os.close(r1)
+        os.close(w2)
+
+        self.bottom_halves_before_fork(*args, **kwargs)
+
+        r3, w3 = os.pipe()
+        r4, w4 = os.pipe()
+        pid = _fork()
+
+        if pid == 0:
+            if not self.interactive:
+                process_id = os.setsid()
+                if process_id == -1:
+                    sys.exit(1)
+
+            os.close(w1)
+            os.close(r2)
+
+            os.close(r3)
+            os.close(w4)
+
+            self.bottom_halves_before_sync(*args, **kwargs)
+
+            os.write(w3, to_bytes(chr(_ACKCHAR)))
+            os.close(w3)
+
+            self.bottom_halves_half_sync(*args, **kwargs)
+
+            if ord(os.read(r4, 1)) != _ACKCHAR:
+                raise RuntimeError('sync failed')
+            os.close(r4)
+
+            if not self.interactive:
+                devnull = "/dev/null"
+                if hasattr(os, "devnull"):
+                    devnull = os.devnull
+
+                for fd in range(3, resource.getrlimit(resource.RLIMIT_NOFILE)[0]):
+                    try:
+                        os.close(fd)
+                    except OSError:
+                        pass
+
+                os.chdir('/')
+                devnull_fd = os.open(devnull, os.O_RDWR)
+                os.dup2(devnull_fd, 0)
+                os.dup2(devnull_fd, 1)
+                os.dup2(devnull_fd, 2)
+                os.close(devnull_fd)
+
+            self.bottom_halves_after_sync(*args, **kwargs)
+
+            sys.exit(0)
+        else:
+
+            os.close(w3)
+            os.close(r4)
+
+            if ord(os.read(r3, 1)) != _ACKCHAR:
+                raise RuntimeError('sync failed')
+            os.close(r3)
+
+            os.write(w1, to_bytes("%d" % pid))
+            os.close(w1)
+
+            if ord(os.read(r2, 1)) != _ACKCHAR:
+                raise RuntimeError('sync failed')
+            os.close(r2)
+
+            os.write(w4, to_bytes(chr(_ACKCHAR)))
+            os.close(w4)
+
+            if self.interactive:
+                os.waitpid(pid, 0)
+            else:
+                sys.exit(0)
+
+
+    def _default_handler_to_parse_conf(self):
+        if self.init_prog is not None or self.nscmd is not None:
+            if self.func is not None:
+                raise NamespaceSettingError()
+
+        check_namespaces_available_status()
+        if not user_namespace_available():
+            if self.strict:
+                if (self.maproot or self.users_map or self.groups_map):
+                    raise NamespaceSettingError(
+                        'cannot do users/groups mapping')
+            else:
+                self.maproot = False
+                self.users_map = None
+                self.group_map = None
+        if self.setgroups == "allow" and (
+                self.maproot or self.users_map or self.groups_map):
+            if self.strict:
+                raise NamespaceSettingError('setgroups and users/groups mapping conflict')
+            else:
+                self.maproot = False
+                self.users_map = None
+                self.group_map = None
+        if not pid_namespace_available():
+            if self.strict and self.mountproc:
+                raise NamespaceSettingError('cannot mount procfs')
+            else:
+                self.mountproc = False
+                self.mountpoint = None
+        if not mount_namespace_available():
+            if self.strict and self.propagation is not None:
+                raise NamespaceSettingError()
+            else:
+                self.propagation = None
+        if self.setgroups == "allow" and (
+                self.maproot or self.users_map or self.groups_map):
+            raise NamespaceSettingError()
+
+        self.namespaces = adjust_namespaces(self.namespaces,
+                                                self.negative_namespaces)
+
+        path = "/proc/self/setgroups"
+        if not os.path.exists(path) and self.setgroups is not None:
+            if self.setgroups != 'allow':
+                raise NamespaceSettingError('do not support setgroups')
+
+        if self._need_super_privilege():
+            raise NamespaceRequireSuperuserPrivilege()
+
+        if self.mountproc:
+            if mount_namespace_available():
+                if "mount" not in self.namespaces:
+                    if self.strict:
+                        raise NamespaceSettingError()
+                    else:
+                        self.namespaces.append("mount")
+            else:
+                raise NamespaceSettingError()
+
+        if self.maproot:
+            if user_namespace_available():
+                if "user" not in self.namespaces:
+                    if strict:
+                        raise NamespaceSettingError()
+                    else:
+                        self.namespaces.append("user")
+            else:
+                raise NamespaceSettingError()
+
+        if mount_namespace_available():
+            if "mount" in self.namespaces and self.propagation is None:
+                self.propagation = "private"
+
+        path = "/proc/self/setgroups"
+        if self.setgroups is None:
+            if user_namespace_available() and "user" in self.namespaces:
+                if self.maproot and os.path.exists(path):
+                    self.setgroups = "deny"
+
+        if "user" not in self.namespaces:
+            self.maproot = False
+            self.setgroups = None
+            self.users_map = None
+            self.groups_map = None
+
+        if "pid" not in self.namespaces:
+            self.mountproc = False
+
+        if "mount" not in self.namespaces:
+             self.ns_bind_dir = None
+             self.propagation = None
+             self.mountproc = False
+
+        if self.users_map:
+            _users_map = []
+            for _map in self.users_map:
+                inter_id, outer_id, _range = _covert_map_to_tuple(_map, 'user')
+                _users_map.append('%d %d %d' % (inter_id, outer_id, _range))
+
+            for _map in _users_map:
+                if not _accetable_user_map(_map):
+                    raise NamespaceRequireSuperuserPrivilege()
+            self.users_map = _users_map
+
+        if self.groups_map:
+            _groups_map = []
+            for _map in self.groups_map:
+                inter_id, outer_id, _range = _covert_map_to_tuple(
+                    _map, 'group')
+                _groups_map.append('%d %d %d' % (inter_id, outer_id, _range))
+
+            for _map in _groups_map:
+                if not _accetable_group_map(_map):
+                    raise NamespaceRequireSuperuserPrivilege()
+            self.groups_map = _groups_map
+
+        if self.maproot:
+            if not self.users_map:
+                self.users_map = ['0 %d 1' % os.geteuid()]
+            if not self.groups_map:
+                self.groups_map = ['0 %d 1' % os.getegid()]
+
+    def _need_super_privilege(self):
+        require_root_privilege = False
+        if not user_namespace_available():
+            require_root_privilege = True
+        if self.namespaces and "user" not in self.namespaces:
+            require_root_privilege = True
+        if self.ns_bind_dir:
+            require_root_privilege = True
+        if require_root_privilege:
+            euid = os.geteuid()
+            require_root_privilege = (euid != 0)
+        return require_root_privilege
+
+    def _default_null_handler(self, *args, **kwargs):
+        pass
+
+    def _default_bottom_halves_before_fork(self, *args, **kwargs):
+        unshare(self.namespaces)
+
+    def _default_bottom_halves_before_sync(self, *args, **kwargs):
+        if "mount" in self.namespaces and self.propagation is not None:
+            workbench.set_propagation(self.propagation)
+        if self.mountproc:
+            workbench._mount_proc(mountpoint=self.mountpoint)
+
+    def _default_bottom_halves_after_sync(self, *args, **kwargs):
+        if self.func is None:
+            if not self.nscmd:
+                self.nscmd = [find_shell()]
+            elif not isinstance(self.nscmd, list):
+                self.nscmd = [self.nscmd]
+            if "pid" not in self.namespaces:
+                args = self.nscmd
+            elif self.init_prog is not None:
+                args = [self.init_prog] + self.nscmd
+            else:
+                args = [sys.executable, self.my_init, "--skip-startup-files",
+                        "--skip-runit", "--quiet"] + self.nscmd
+            os.execlp(args[0], *args)
+        else:
+            if hasattr(self.func, '__call__'):
+                self.func(*args, **kwargs)
+            else:
+                raise NamespaceSettingError()
+
+    def _default_top_halves_before_sync(self, *args, **kwargs):
+        if self.setgroups == "allow" and self.maproot:
+            raise NamespaceSettingError()
+
+    def _default_top_halves_half_sync(self, *args, **kwargs):
+        if "user" in self.namespaces:
+            workbench.setgroups_control(self.setgroups,
+                                            self.bottom_halves_child_pid)
+            _write_to_uid_and_gid_map(
+                self.maproot, self.users_map,
+                self.groups_map, self.bottom_halves_child_pid)
+
+        if self.ns_bind_dir is not None and "mount" in self.namespaces:
+            workbench.bind_ns_files(self.bottom_halves_child_pid,
+                                        self.namespaces, self.ns_bind_dir)
 
 class CFunction(object):
     """
@@ -768,21 +1181,27 @@ class Workbench(object):
         return self._c_func_sched_getcpu()
 
     def cgroup_namespace_available(self):
+        self.check_namespaces_available_status()
         return self.namespaces.cgroup_namespace_available
 
     def ipc_namespace_available(self):
+        self.check_namespaces_available_status()
         return self.namespaces.ipc_namespace_available
 
     def net_namespace_available(self):
+        self.check_namespaces_available_status()
         return self.namespaces.net_namespace_available
 
     def mount_namespace_available(self):
+        self.check_namespaces_available_status()
         return self.namespaces.mount_namespace_available
 
     def pid_namespace_available(self):
+        self.check_namespaces_available_status()
         return self.namespaces.pid_namespace_available
 
     def user_namespace_available(self):
+        self.check_namespaces_available_status()
         return self.namespaces.user_namespace_available
 
     def uts_namespace_available(self):
@@ -1078,267 +1497,26 @@ class Workbench(object):
                 os.close(os.open(target, os.O_CREAT | os.O_RDWR))
             self.mount(source=source, target=target, mount_type="bind")
 
-    def _run_cmd_in_new_namespaces(
-            self, r1, w1, r2, w2, namespaces, mountproc, mountpoint,
-            nscmd=None, propagation=None, init_prog=None, func=None):
-        os.close(r1)
-        os.close(w2)
-
-        if namespaces is None:
-            return
-
-        self.unshare(namespaces)
-
-        r3, w3 = os.pipe()
-        r4, w4 = os.pipe()
-        pid = _fork()
-
-        if pid == 0:
-            os.close(w1)
-            os.close(r2)
-
-            os.close(r3)
-            os.close(w4)
-
-            if "mount" in namespaces and propagation is not None:
-                self.set_propagation(propagation)
-            if mountproc:
-                self._mount_proc(mountpoint=mountpoint)
-
-            os.write(w3, to_bytes(chr(_ACLCHAR)))
-            os.close(w3)
-
-            if ord(os.read(r4, 1)) != _ACLCHAR:
-                raise "sync failed"
-            os.close(r4)
-
-            if func is None:
-                if not nscmd:
-                    nscmd = [find_shell()]
-                elif not isinstance(nscmd, list):
-                    nscmd = [nscmd]
-                if "pid" not in namespaces:
-                    args = nscmd
-                elif init_prog is not None:
-                    args = [init_prog] + nscmd
-                else:
-                    args = [sys.executable, self.my_init, "--skip-startup-files",
-                            "--skip-runit", "--quiet"] + nscmd
-                os.execlp(args[0], *args)
-            else:
-                if hasattr(func, '__call__'):
-                    func()
-                else:
-                    raise NamespaceSettingError()
-            sys.exit(0)
-        else:
-            os.close(w3)
-            os.close(r4)
-
-            if ord(os.read(r3, 1)) != _ACLCHAR:
-                raise "sync failed"
-            os.close(r3)
-
-            os.write(w1, to_bytes("%d" % pid))
-            os.close(w1)
-
-            if ord(os.read(r2, 1)) != _ACLCHAR:
-                raise "sync failed"
-            os.close(r2)
-
-            os.write(w4, to_bytes(chr(_ACLCHAR)))
-            os.close(w4)
-
-            os.waitpid(pid, 0)
-            sys.exit(0)
-
-    def _continue_original_flow(
-            self, r1, w1, r2, w2, namespaces, ns_bind_dir,
-            setgroups, maproot, users_map, groups_map):
-
-        if setgroups == "allow" and maproot:
-            raise NamespaceSettingError()
-
-        os.close(w1)
-        os.close(r2)
-
-        child_pid = os.read(r1, 64)
-        os.close(r1)
-        try:
-            child_pid = int(child_pid)
-        except ValueError:
-            raise RuntimeError("failed to get the child pid")
-
-        if "user" in namespaces:
-            self.setgroups_control(setgroups, child_pid)
-            _write_to_uid_and_gid_map(maproot, users_map,
-                                          groups_map, child_pid)
-
-        if ns_bind_dir is not None and "mount" in namespaces:
-            self.bind_ns_files(child_pid, namespaces, ns_bind_dir)
-        os.write(w2, to_bytes(chr(_ACLCHAR)))
-        os.close(w2)
-        return child_pid
 
     def _namespace_available(self, namespace):
         ns_obj = self.get_namespace( namespace)
         return ns_obj.available
 
-    def _fix_spawn_options(self, namespaces, maproot, mountproc, mountpoint,
-                               ns_bind_dir, propagation, negative_namespaces,
-                               setgroups, users_map, groups_map):
-        self.check_namespaces_available_status()
-        if not self.user_namespace_available():
-            maproot = False
-            users_map = None
-            group_map = None
-        if setgroups == "allow" and maproot:
-            maproot = False
-            users_map = None
-            group_map = None
-        if not self.pid_namespace_available():
-            mountproc = False
-            mountpoint = None
-        if mountproc and mountpoint is None:
-            mountpoint = '/proc'
-        if not self.mount_namespace_available():
-            propagation = None
-        if setgroups == "allow" and maproot:
-            raise NamespaceSettingError()
 
-        namespaces = self.adjust_namespaces(namespaces, negative_namespaces)
-
-        all_namespaces = self.namespaces.namespaces
-        unsupported_namespaces = []
-        for ns in namespaces:
-            if ns not in all_namespaces:
-                unsupported_namespaces.append(ns)
-            elif not self._namespace_available(ns):
-                unsupported_namespaces.append(ns)
-        if unsupported_namespaces:
-            raise UnavailableNamespaceFound(unsupported_namespaces)
-
-        path = "/proc/self/setgroups"
-        if not os.path.exists(path) and setgroups is not None:
-            raise NamespaceSettingError('do not support setgroups')
-
-        if _need_super_user_privilege(namespaces, ns_bind_dir, users_map,
-                                      groups_map):
-            raise NamespaceRequireSuperuserPrivilege()
-
-        if mountproc:
-            if self.mount_namespace_available():
-                if "mount" not in namespaces: namespaces.append("mount")
-            else:
-                raise NamespaceSettingError()
-
-        if maproot:
-            if self.user_namespace_available():
-                if "user" not in namespaces: namespaces.append("user")
-            else:
-                raise NamespaceSettingError()
-
-        if mount_namespace_available():
-            if "mount" in namespaces and propagation is None:
-                propagation = "private"
-
-        path = "/proc/self/setgroups"
-        if setgroups is None:
-            if self.user_namespace_available and "user" in namespaces:
-                if maproot and os.path.exists(path):
-                    setgroups = "deny"
-
-        if "user" not in namespaces:
-            maproot = False
-            setgroups = None
-            users_map = None
-            groups_map = None
-
-        if "pid" not in namespaces:
-            mountproc = False
-
-        if "mount" not in namespaces:
-             ns_bind_dir = None
-             propagation = None
-             mountproc = False
-
-        if users_map:
-            _users_map = []
-            for _map in users_map:
-                inter_id, outer_id, _range = _covert_map_to_tuple(_map, 'user')
-                _users_map.append('%d %d %d' % (inter_id, outer_id, _range))
-
-            for _map in _users_map:
-                if not _accetable_user_map(_map):
-                    raise NamespaceRequireSuperuserPrivilege()
-            users_map = _users_map
-
-        if groups_map:
-            _groups_map = []
-            for _map in groups_map:
-                inter_id, outer_id, _range = _covert_map_to_tuple(_map,
-                                                                      'group')
-                _groups_map.append('%d %d %d' % (inter_id, outer_id, _range))
-
-            for _map in _groups_map:
-                if not _accetable_group_map(_map):
-                    raise NamespaceRequireSuperuserPrivilege()
-            groups_map = _groups_map
-
-        return (namespaces, maproot, mountproc, mountpoint,
-                    ns_bind_dir, propagation, negative_namespaces,
-                    setgroups, users_map, groups_map)
-
-    def spawn_namespaces(self, namespaces=None, maproot=True, mountproc=True,
-                             mountpoint=None, ns_bind_dir=None, nscmd=None,
-                             propagation=None, negative_namespaces=None,
-                             setgroups=None, users_map=None, groups_map=None,
-                             init_prog=None, func=None):
+    def spawn_namespaces(
+            self, namespaces=None, maproot=True, mountproc=True,
+            mountpoint=None, ns_bind_dir=None, nscmd=None,
+            propagation=None, negative_namespaces=None,
+            setgroups=None, users_map=None, groups_map=None,
+            init_prog=None, func=None, interactive=None):
         """
         workbench.spawn_namespace(namespaces=["pid", "net", "mount"])
         """
+        SpawnNamespacesConfig(
+            namespaces, maproot, mountproc, mountpoint, ns_bind_dir, nscmd,
+            propagation, negative_namespaces,setgroups, users_map, groups_map,
+            init_prog, func, interactive=interactive).entry_point()
 
-        if (init_prog is not None or nscmd is not None) and func is not None:
-            raise NamespaceSettingError()
-        origin_args = _copy_args(namespaces, maproot, mountproc, mountpoint,
-                                     ns_bind_dir, nscmd, propagation,
-                                     negative_namespaces, setgroups, users_map,
-                                 groups_map, init_prog, func)
-        fixed_options = self._fix_spawn_options(
-            namespaces, maproot, mountproc, mountpoint,
-            ns_bind_dir, propagation, negative_namespaces,
-            setgroups, users_map, groups_map)
-        (namespaces, maproot, mountproc, mountpoint,
-         ns_bind_dir, propagation, negative_namespaces,
-         setgroups, users_map, groups_map) = fixed_options
-
-        r1, w1 = os.pipe()
-        r2, w2 = os.pipe()
-        pid = _fork()
-
-        if pid == 0:
-            self._run_cmd_in_new_namespaces(
-                r1, w1, r2, w2, namespaces, mountproc, mountpoint,
-                nscmd, propagation, init_prog, func)
-        else:
-            child_pid = self._continue_original_flow(
-                r1, w1, r2, w2, namespaces, ns_bind_dir,
-                setgroups, maproot, users_map, groups_map)
-            def ensure_wait_child_process(pid=pid):
-                try:
-                    os.waitpid(pid, 0)
-                except OSError:
-                    pass
-            atexit.register(ensure_wait_child_process)
-
-            last_args = _copy_args(namespaces, maproot, mountproc, mountpoint,
-                                     ns_bind_dir, nscmd, propagation,
-                                     negative_namespaces, setgroups, users_map,
-                                     groups_map, init_prog, func)
-            return {'pid': pid,
-                        'child_pid': child_pid,
-                        'origin_args': origin_args,
-                        'last_args': last_args}
 
 class CFunctionBaseException(Exception):
     pass
@@ -1430,13 +1608,13 @@ def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
                          mountpoint="/proc", ns_bind_dir=None, nscmd=None,
                          propagation=None, negative_namespaces=None,
                          setgroups=None, users_map=None, groups_map=None,
-                         init_prog=None, func=None):
+                         init_prog=None, func=None, interactive=None):
     return workbench.spawn_namespaces(
         namespaces=namespaces, maproot=maproot, mountproc=mountproc,
         mountpoint=mountpoint, ns_bind_dir=ns_bind_dir, nscmd=nscmd,
         propagation=propagation, negative_namespaces=negative_namespaces,
         setgroups=setgroups, users_map=users_map, groups_map=groups_map,
-        init_prog=init_prog, func=func)
+        init_prog=init_prog, func=func, interactive=interactive)
 
 def check_namespaces_available_status():
     return workbench.check_namespaces_available_status()

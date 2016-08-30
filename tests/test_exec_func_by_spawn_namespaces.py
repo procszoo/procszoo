@@ -15,8 +15,12 @@ def demo():
     printf("run by func arg: %d" % os.getpid())
 
 if __name__ == "__main__":
+    maproot=False
+    if user_namespace_available():
+        maproot=True
+
     try:
-        spawn_namespaces(func=demo)
+        spawn_namespaces(maproot=maproot, func=demo)
     except NamespaceRequireSuperuserPrivilege as e:
         warn(e)
         sys.exit(1)
