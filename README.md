@@ -23,7 +23,7 @@ power to manage your processes by Linux namespaces.
 --------
 
 Procszoo aims to provide you a simple but complete tool and
-you can use it as a **DSL** or an embeded programming language
+you can use it as a **DSL** or an embedded programming language
 which let you operate Linux namespaces by Python.
 
 Procszoo gives a smart *init* program. I get it from

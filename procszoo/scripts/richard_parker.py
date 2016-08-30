@@ -2,11 +2,14 @@ import os
 import sys
 from argparse import ArgumentParser
 import traceback
-from distutils.log import warn as printf
 from procszoo.c_functions import *
+from procszoo.utils import *
 
 def get_options():
     propagation_types = get_available_propagations()
+    available_namespaces = [
+        ns_status[0] for ns_status in show_namespaces_status()
+                                 if ns_status[1]]
     prog = os.path.basename(sys.argv[0]) or 'richard_parker'
     project_url = "http://github.com/xning/procszoo"
     description = "%s, %s" % (
@@ -20,25 +23,35 @@ def get_options():
     parser.add_argument('-v', '--version', action='version',
                             version='%s %s' %  (prog, __version__))
     parser.add_argument("-n", "--namespace", action="append",
-                            dest="namespaces",
+                            dest="namespaces", choices=available_namespaces,
                             help="namespace that should be create")
     parser.add_argument("-N", "--negative-namespace", action="append",
                           dest="negative_namespaces",
+                          choices=available_namespaces,
                           help="namespace that should not be create")
+    parser.add_argument("-i", "--interactive", action="store_true",
+                            dest="interactive", default=True,
+                            help="enable interactive mode")
+    parser.add_argument('-B', '--batch', action="store_false",
+                            dest="interactive",
+                            help='enable batch mode')
     help_str = "map current effective user/group to root/root, implies -n user"
     parser.add_argument("-r", "--maproot", action="store_true", dest="maproot",
                             default=True, help=help_str)
     parser.add_argument("--no-maproot", action="store_false", dest="maproot")
     parser.add_argument("-u", "--user-map", action="append", dest="users_map",
-                          type=str, help="user map settings, implies -n user")
+                            metavar='name_or_uid',
+                            type=str,
+                            help="user map settings, implies -n user")
     parser.add_argument("-g", "--group-map", action="append",
-                            dest="groups_map", type=str,
+                            dest="groups_map", type=str, metavar='name_or_gid',
                             help="group map settings, implies -n user")
     parser.add_argument("--init-program", action="store", dest="init_prog",
-                            type=str,
+                            type=str, metavar='your_init_program',
                             help="replace the my_init program by yours")
     parser.add_argument(
         "-s", "--setgroups", action="store", type=str, dest="setgroups",
+        choices=['allow', 'deny'],
         help="""control the setgroups syscall in user namespaces,
         when setting to 'allow' will enable --no-maproot option and avoid
         --user-map and --group-map options""")
@@ -52,7 +65,7 @@ def get_options():
                         dest="mountpoint",
                         help="dir that the new procfs would be mounted to")
     parser.add_argument("-b", "--ns-bind-dir", action="store", type=str,
-                        dest="ns_bind_dir",
+                        dest="ns_bind_dir", metavar='dir',
                         help="dir that the new namespaces would be mounted to")
     parser.add_argument(
         "--propagation", action="store", type=str, dest="propagation",
@@ -100,11 +113,15 @@ def main():
             nscmd=args.nscmd, users_map=args.users_map,
             groups_map=args.groups_map,
             setgroups=args.setgroups,
-            init_prog=args.init_prog)
+            init_prog=args.init_prog,
+            interactive=args.interactive)
     except UnavailableNamespaceFound as e:
         printf(e)
         _exit_code = 1
     except NamespaceRequireSuperuserPrivilege as e:
+        printf(e)
+        _exit_code = 1
+    except NamespaceSettingError as e:
         printf(e)
         _exit_code = 1
     except SystemExit:

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
 import sys
-from distutils.log import warn as printf
 from setuptools import setup, find_packages, Extension, Command
 from setuptools.command.build_py import build_py
 
@@ -30,11 +29,12 @@ setup(
     packages = find_packages(),
     url='https://github.com/xning/procszoo',
     use_2to3=False,
-    scripts=['bin/mamaji', 'lib/procszoo/my_init'],
+    scripts=['lib/procszoo/my_init',],
     entry_points={
         'console_scripts':[
+            python_entrypoint("mamaji", "procszoo.scripts.mamaji:main"),
             python_entrypoint("richard_parker", "procszoo.scripts.richard_parker:main")
-            ]
+            ],
         },
     ext_modules=[
         Extension(name='procszoo.c_functions.atfork',

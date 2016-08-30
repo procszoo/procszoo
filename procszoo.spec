@@ -40,7 +40,7 @@ BuildRequires: autoconf make gcc
 %else
 %{!?python2_pkgversion: %global python2_pkgversion 2}
 %global python2_pkgprefix python2
-%endif    
+%endif
 %endif
 
 %if 0%{?with_python3}
@@ -50,7 +50,7 @@ BuildRequires: autoconf make gcc
 
 %if 0%{?rhel}
 BuildRequires: epel-rpm-macros
-%endif 
+%endif
 
 %if 0%{?with_python2}
 BuildRequires: %{python2_pkgprefix}-devel %{python2_pkgprefix}-setuptools python-rpm-macros python2-rpm-macros
@@ -116,8 +116,8 @@ rm -rf "$RPM_BUILD_ROOT"
 %doc README.first
 %doc README.md
 %{python2_sitearch}/*
-%{_bindir}/setuid
 %{_bindir}/my_init
+%ghost %{_bindir}/mamaji
 %ghost %{_bindir}/richard_parker
 %{_bindir}/*-%{python2_version}
 %{_bindir}/*-2
@@ -129,8 +129,8 @@ rm -rf "$RPM_BUILD_ROOT"
 %doc README.first
 %doc README.md
 %{python3_sitearch}/*
-%{_bindir}/setuid
 %{_bindir}/my_init
+%ghost %{_bindir}/mamaji
 %ghost %{_bindir}/richard_parker
 %{_bindir}/*-%{python3_version}
 %{_bindir}/*-3
@@ -138,23 +138,32 @@ rm -rf "$RPM_BUILD_ROOT"
 
 %if 0%{?with_python2}
 %post -n python2-%{srcname}
+%{_sbindir}/update-alternatives --install %{_bindir}/mamaji \
+    mamaji %{_bindir}/mamaji-2 2
 %{_sbindir}/update-alternatives --install %{_bindir}/richard_parker \
     richard_parker %{_bindir}/richard_parker-2 2
 
 %postun -n python2-%{srcname}
 if [ $1 -eq 0 ] ; then
+    %{_sbindir}/update-alternatives --remove mamaji %{_bindir}/mamaji-2
     %{_sbindir}/update-alternatives --remove richard_parker %{_bindir}/richard_parker-2
 fi
 %endif
 
 %if 0%{?with_python3}
 %post -n %{python3_pkgprefix}-%{srcname}
+%{_sbindir}/update-alternatives --install %{_bindir}/mamaji \
+    mamaji %{_bindir}/mamaji-3 3
 %{_sbindir}/update-alternatives --install %{_bindir}/richard_parker \
     richard_parker %{_bindir}/richard_parker-3 3
 
 %postun -n %{python3_pkgprefix}-%{srcname}
 if [ $1 -eq 0 ] ; then
+    %{_sbindir}/update-alternatives --remove mamaji %{_bindir}/mamaji-3
     %{_sbindir}/update-alternatives --remove richard_parker %{_bindir}/richard_parker-3
 fi
 %endif
 
+%changelog
+* Tue Aug 30 2016 Rayson Zhu <vfreex@gmail.com> - 0.97.2a1-1
+- first build

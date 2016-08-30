@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
 import sys
-from distutils.log import warn as printf
 from ctypes import c_char_p
 
 try:
@@ -11,6 +10,8 @@ except ImportError:
     procszoo_mod_dir = os.path.abspath("%s/.." % this_file_absdir)
     sys.path.append(procszoo_mod_dir)
     from procszoo.c_functions import *
+from procszoo.utils import *
+
 
 def try_pivot_root():
     workdir = "/tmp/new-root"
@@ -51,10 +52,15 @@ def try_pivot_root():
 if __name__ == "__main__":
     euid = os.geteuid()
     if euid != 0:
-        printf("need superuser privilege, quit")
+        warn("need superuser privilege, quit")
         sys.exit(1)
+
+    maproot=False
+    if user_namespace_available():
+        maproot=True
+
     try:
-        spawn_namespaces(func=try_pivot_root)
+        spawn_namespaces(maproot=maproot, func=try_pivot_root)
     except NamespaceRequireSuperuserPrivilege as e:
-        printf(e)
+        warn(e)
         sys.exit(1)
