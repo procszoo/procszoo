@@ -48,5 +48,8 @@ rpm: dist
 	$(Q)rpmbuild --define "_topdir $(shell pwd)/$(RPMBUILD_TOPDIR)" --clean -ta "dist/procszoo-$(VERSION).tar.gz"
 	$(Q)cp -a "$(RPMBUILD_TOPDIR)"/{SRPMS,RPMS/*}/*.rpm "$(SRPM_OUTDIR)"
 
-.PHONY: all clean build_ext prepare dist srpm rpm
+deb:
+	$(Q)debuild -us -uc
+
+.PHONY: all clean build_ext prepare dist srpm rpm deb
 

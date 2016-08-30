@@ -42,8 +42,9 @@ from ..utils import *
 from ..namespaces import *
 from ..version import PROCSZOO_VERSION
 from .macros import *
-
 from .atfork import atfork as c_atfork
+
+import procszoo
 
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
@@ -261,6 +262,7 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
             raise NamespaceRequireSuperuserPrivilege()
 
 def _find_my_init(pathes=None, name=None, file_mode=None, dir_mode=None):
+    return procszoo.package_abspath + '/scripts/my_init'
     if pathes is None:
         if 'PATH' in os.environ:
             pathes = os.environ['PATH'].split(':')
@@ -849,7 +851,7 @@ class Workbench(object):
     class used as a singleton.
     """
     def __init__(self):
-        self.my_init = _find_my_init()
+        self.my_init = procszoo.package_abspath + '/scripts/my_init' # _find_my_init()
         self.functions = {}
         self.available_c_functions = []
         self.namespaces = Namespaces()
