@@ -1,6 +1,8 @@
 About
 =====
 
+[![Join the chat at https://gitter.im/procszoo/Lobby](https://badges.gitter.im/procszoo/Lobby.svg)](https://gitter.im/procszoo/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Procszoo is a small Python module that gives you full
 power to manage your processes by Linux namespaces.
 
