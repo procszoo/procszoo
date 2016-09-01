@@ -443,18 +443,22 @@ class SpawnNamespacesConfig(object):
             setattr(self, 'top_halves_after_sync', top_halves_after_sync)
 
         if bottom_halves_before_fork is None:
-            self.bottom_halves_before_fork = self._default_bottom_halves_before_fork
+            self.bottom_halves_before_fork = (
+                self._default_bottom_halves_before_fork)
         elif not getattr(bottom_halves_before_fork, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
-            setattr(self, 'bottom_halves_before_fork', bottom_halves_before_fork)
+            setattr(self, 'bottom_halves_before_fork',
+                        bottom_halves_before_fork)
 
         if bottom_halves_before_sync is None:
-            self.bottom_halves_before_sync = self._default_bottom_halves_before_sync
+            self.bottom_halves_before_sync = (
+                self._default_bottom_halves_before_sync)
         elif not getattr(bottom_halves_before_sync, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
-            setattr(self, 'bottom_halves_before_sync', bottom_halves_before_sync)
+            setattr(self, 'bottom_halves_before_sync',
+                        bottom_halves_before_sync)
 
         if bottom_halves_half_sync is None:
             self.bottom_halves_half_sync = self._default_null_handler
@@ -464,7 +468,8 @@ class SpawnNamespacesConfig(object):
             setattr(self, 'bottom_halves_half_sync', bottom_halves_half_sync)
 
         if bottom_halves_after_sync is None:
-            self.bottom_halves_after_sync = self._default_bottom_halves_after_sync
+            self.bottom_halves_after_sync = (
+                self._default_bottom_halves_after_sync)
         elif not getattr(bottom_halves_after_sync, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -478,11 +483,13 @@ class SpawnNamespacesConfig(object):
             setattr(self, 'top_halves_entry_point', top_halves_entry_point)
 
         if bottom_halves_entry_point is None:
-            self.bottom_halves_entry_point = self._default_bottom_halves_entry_point
+            self.bottom_halves_entry_point = (
+                self._default_bottom_halves_entry_point)
         elif not getattr(bottom_halves_entry_point, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
-            setattr(self, 'bottom_halves_entry_point', bottom_halves_entry_point)
+            setattr(self, 'bottom_halves_entry_point',
+                        bottom_halves_entry_point)
 
         if entry_point is None:
             self.entry_point = self._default_entry_point
@@ -507,7 +514,8 @@ class SpawnNamespacesConfig(object):
         else:
             sys.exit(0)
 
-    def _default_top_halves_entry_point(self, r1, w1, r2, w2, pid, *args, **kwargs):
+    def _default_top_halves_entry_point(self, r1, w1, r2, w2, pid,
+                                            *args, **kwargs):
         self.top_halves_child_pid = pid
 
         self.top_halves_before_sync(*args, **kwargs)
@@ -536,7 +544,8 @@ class SpawnNamespacesConfig(object):
         else:
             sys.exit(0)
 
-    def _default_bottom_halves_entry_point(self, r1, w1, r2, w2, *args, **kwargs):
+    def _default_bottom_halves_entry_point(self, r1, w1, r2, w2,
+                                               *args, **kwargs):
         os.close(r1)
         os.close(w2)
 
@@ -574,7 +583,8 @@ class SpawnNamespacesConfig(object):
                 if hasattr(os, "devnull"):
                     devnull = os.devnull
 
-                for fd in range(3, resource.getrlimit(resource.RLIMIT_NOFILE)[0]):
+                for fd in range(
+                        3, resource.getrlimit(resource.RLIMIT_NOFILE)[0]):
                     try:
                         os.close(fd)
                     except OSError:
@@ -586,6 +596,7 @@ class SpawnNamespacesConfig(object):
                 os.dup2(devnull_fd, 1)
                 os.dup2(devnull_fd, 2)
                 os.close(devnull_fd)
+                os.umask(0)
 
             self.bottom_halves_after_sync(*args, **kwargs)
 
@@ -633,7 +644,8 @@ class SpawnNamespacesConfig(object):
         if self.setgroups == "allow" and (
                 self.maproot or self.users_map or self.groups_map):
             if self.strict:
-                raise NamespaceSettingError('setgroups and users/groups mapping conflict')
+                raise NamespaceSettingError(
+                    'setgroups and users/groups mapping conflict')
             else:
                 self.maproot = False
                 self.users_map = None
