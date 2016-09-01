@@ -17,33 +17,16 @@ try:
 except ImportError:
     pass
 
-_pyroute2_module_available = False
-_pyroute2_netns_available = False
-try:
-    import pyroute2
-except ImportError:
-    pass
-else:
-    _pyroute2_module_available = True
-
-if _pyroute2_module_available:
-    try:
-        pyroute2.NetNS
-    except AttributeError:
-        pass
-    else:
-        _pyroute2_netns_available = True
-
 import pickle
 from copy import copy, deepcopy
 import json
 
-from ..utils import *
-from ..namespaces import *
-from ..version import PROCSZOO_VERSION
-from .macros import *
+from procszoo.utils import *
+from procszoo.namespaces import *
+from procszoo.version import PROCSZOO_VERSION
+from procszoo.c_functions.macros import *
 
-from .atfork import atfork as c_atfork
+from procszoo.c_functions.atfork import atfork as c_atfork
 
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
@@ -79,6 +62,7 @@ _PREPARE_FORKHANDLERS = []
 _PARENT_FORKHANDLERS = []
 _CHILD_FORKHANDLERS = []
 _CALLERS_REGISTERED = False
+
 
 def _register_fork_handlers(prepare=None, parent=None, child=None):
     if prepare is not None:
@@ -432,79 +416,79 @@ class SpawnNamespacesConfig(object):
 
         if parse_conf is None:
             self.parse_conf = self._default_handler_to_parse_conf
+        elif not getattr(parse_conf, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(parse_conf, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'parse_conf', parse_conf)
 
         if top_halves_before_sync is None:
             self.top_halves_before_sync = self._default_top_halves_before_sync
+        elif not getattr(top_halves_before_sync, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(top_halves_before_sync, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'top_halves_before_sync', top_halves_before_sync)
 
         if top_halves_half_sync is None:
             self.top_halves_half_sync = self._default_top_halves_half_sync
+        elif not getattr(top_halves_half_sync, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(top_halves_half_sync, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'top_halves_half_sync', top_halves_half_sync)
 
         if top_halves_after_sync is None:
             self.top_halves_after_sync = self._default_null_handler
+        elif not getattr(top_halves_after_sync, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(top_halves_after_sync, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'top_halves_after_sync', top_halves_after_sync)
 
         if bottom_halves_before_fork is None:
             self.bottom_halves_before_fork = self._default_bottom_halves_before_fork
+        elif not getattr(bottom_halves_before_fork, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(bottom_halves_before_fork, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'bottom_halves_before_fork', bottom_halves_before_fork)
 
         if bottom_halves_before_sync is None:
             self.bottom_halves_before_sync = self._default_bottom_halves_before_sync
+        elif not getattr(bottom_halves_before_sync, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(bottom_halves_before_sync, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'bottom_halves_before_sync', bottom_halves_before_sync)
 
         if bottom_halves_half_sync is None:
             self.bottom_halves_half_sync = self._default_null_handler
+        elif not getattr(bottom_halves_half_sync, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(bottom_halves_half_sync, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'bottom_halves_half_sync', bottom_halves_half_sync)
 
         if bottom_halves_after_sync is None:
             self.bottom_halves_after_sync = self._default_bottom_halves_after_sync
+        elif not getattr(bottom_halves_after_sync, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(bottom_halves_after_sync, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'bottom_halves_after_sync', bottom_halves_after_sync)
 
         if top_halves_entry_point is None:
             self.top_halves_entry_point = self._default_top_halves_entry_point
+        elif not getattr(top_halves_entry_point, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(top_halves_entry_point, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'top_halves_entry_point', top_halves_entry_point)
 
         if bottom_halves_entry_point is None:
             self.bottom_halves_entry_point = self._default_bottom_halves_entry_point
+        elif not getattr(bottom_halves_entry_point, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(bottom_halves_entry_point, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'bottom_halves_entry_point', bottom_halves_entry_point)
 
         if entry_point is None:
             self.entry_point = self._default_entry_point
+        elif not getattr(entry_point, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
         else:
-            if not getattr(entry_point, '__call__'):
-                raise NamespaceSettingError('handler must be a callable')
             setattr(self, 'entry_point', entry_point)
 
     def _default_entry_point(self, *args, **kwargs):
