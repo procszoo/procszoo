@@ -29,12 +29,11 @@ setup(
     packages = find_packages(),
     url='https://github.com/xning/procszoo',
     use_2to3=False,
-    scripts=['lib/procszoo/my_init',],
     entry_points={
         'console_scripts':[
+            python_entrypoint("richard_parker", "procszoo.scripts.richard_parker:main"),
             python_entrypoint("mamaji", "procszoo.scripts.mamaji:main"),
-            python_entrypoint("richard_parker", "procszoo.scripts.richard_parker:main")
-            ],
+            ]
         },
     ext_modules=[
         Extension(name='procszoo.c_functions.atfork',
@@ -43,7 +42,9 @@ setup(
             depends=['procszoo/c_functions/atfork/atfork.h'],
             ),
         ],
-    package_data={'': ['*.txt', '*.md', 'README.first']},
+    package_data={'procszoo':['scripts/my_init']},
+    include_package_data=True,
+    zip_safe=False,
     cmdclass={'build_py' : ProcszooBuildPyCommand},
     long_description="Procszoo aims to provide you a simple but complete tool "
         "and you can use it as a DSL or an embeded programming language "

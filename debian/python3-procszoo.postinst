@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+configure)
+update-alternatives --install /usr/bin/richard_parker richard_parker /usr/bin/richard_parker-3 3
+update-alternatives --install /usr/bin/mamaji mamaji /usr/bin/mamaji-3 3
+;;
+esac

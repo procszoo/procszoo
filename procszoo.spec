@@ -1,3 +1,9 @@
+%global with_python2 1
+
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 13
+%global with_python3 1
+%endif
+
 %global srcname procszoo
 %global debug_package %{nil}
 SOURCE10: VERSION
@@ -25,12 +31,6 @@ Url: https://github.com/xning/procszoo
 Requires(post): %{_sbindir}/update-alternatives
 Requires(postun): %{_sbindir}/update-alternatives
 BuildRequires: autoconf make gcc
-
-%global with_python2 1
-
-%if 0%{?rhel} >= 7 || 0%{?fedora} >= 13
-%global with_python3 1
-%endif
 
 %if 0%{?with_python2}
 %{!?python2_version: %global python2_version %(%{__python2} -c "import sys; sys.stdout.write('\%s.\%s' \% (sys.version_info[0], sys.version_info[1]))")}
@@ -107,6 +107,9 @@ Summary: %{sum}
 %py2_install
 %endif
 
+rm -f "$RPM_BUILD_ROOT"/%{_bindir}/richard_parker
+rm -f "$RPM_BUILD_ROOT"/%{_bindir}/mamaji
+
 %clean
 rm -rf "$RPM_BUILD_ROOT"
 
@@ -116,9 +119,6 @@ rm -rf "$RPM_BUILD_ROOT"
 %doc README.first
 %doc README.md
 %{python2_sitearch}/*
-%{_bindir}/my_init
-%ghost %{_bindir}/mamaji
-%ghost %{_bindir}/richard_parker
 %{_bindir}/*-%{python2_version}
 %{_bindir}/*-2
 %endif
@@ -129,9 +129,6 @@ rm -rf "$RPM_BUILD_ROOT"
 %doc README.first
 %doc README.md
 %{python3_sitearch}/*
-%{_bindir}/my_init
-%ghost %{_bindir}/mamaji
-%ghost %{_bindir}/richard_parker
 %{_bindir}/*-%{python3_version}
 %{_bindir}/*-3
 %endif

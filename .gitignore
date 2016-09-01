@@ -1,0 +1,36 @@
+# common
+*~
+.*
+!.gitignore
+/tags
+
+# autoconf
+/config.log
+/config.status
+/configure
+/autom4te.cache
+
+# python
+*.pyc
+*.pyo
+__pycache__
+*.egg-info/
+
+# C
+*.o
+*.so
+
+# build and packaging
+build/
+dist/
+/debian/files
+/debian/*.log
+/debian/*.debhelper
+/debian/*.substvars
+/debian/python-procszoo/
+/debian/python3-procszoo/
+.pybuild
+
+# project
+procszoo/c_functions/macros.py
+procszoo/version.py

@@ -1,0 +1,41 @@
+Source: python-procszoo
+Section: python
+Priority: optional
+Maintainer: Rayson Zhu <vfreex+procszoo@gmail.com>
+Build-Depends:  debhelper (>= 9),
+                autotools-dev,
+                dh-python,
+                python-setuptools,
+                python3-setuptools,
+                python-dev,
+                python3-dev,
+                autoconf
+Standards-Version: 3.9.5
+Homepage: https://github.com/xning/procszoo
+X-Python-Version: >= 2.6
+X-Python3-Version: >= 3.4
+
+Package: python-procszoo
+Architecture: any
+Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}, python-setuptools
+Description: Python module to operate Linux namespaces
+ Procszoo aims to provide you a simple but complete tool and you can use it
+ as a DSL or an embeded programming language which let you operate Linux namespaces by Python.
+ Procszoo gives a smart init program. I get it from baseimage-docker.
+ Thanks a lot, you guys.
+ Procszoo does not require new version Python (but we support python3, too) and Linux kernel.
+ .
+ This package installs the library for Python 2.
+
+Package: python3-procszoo
+Architecture: any
+Depends: ${shlibs:Depends}, ${python3:Depends}, ${misc:Depends}, python3-setuptools
+Description: Python module to operate Linux namespaces
+ Procszoo aims to provide you a simple but complete tool and you can use it
+ as a DSL or an embeded programming language which let you operate Linux namespaces by Python.
+ Procszoo gives a smart init program. I get it from baseimage-docker.
+ Thanks a lot, you guys.
+ Procszoo does not require new version Python (but we support python3, too) and Linux kernel.
+ .
+ This package installs the library for Python 3.
+

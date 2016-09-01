@@ -25,8 +25,10 @@ from procszoo.utils import *
 from procszoo.namespaces import *
 from procszoo.version import PROCSZOO_VERSION
 from procszoo.c_functions.macros import *
-
 from procszoo.c_functions.atfork import atfork as c_atfork
+
+_this_module_absdir = os.path.dirname(os.path.abspath(__file__))
+_procszoo_scripts_dir = os.path.abspath('%s/../scripts' % _this_module_absdir)
 
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
@@ -240,10 +242,10 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
 
 def _find_my_init(pathes=None, name=None, file_mode=None, dir_mode=None):
     if pathes is None:
+        pathes = [_procszoo_scripts_dir]
         if 'PATH' in os.environ:
-            pathes = os.environ['PATH'].split(':')
-        else:
-            pathes = []
+            pathes += os.environ['PATH'].split(':')
+
         cwd = os.path.dirname(os.path.abspath(__file__))
         absdir = os.path.abspath("%s/../.." % cwd)
         pathes += [path for path in ["%s/lib/procszoo" % absdir,
