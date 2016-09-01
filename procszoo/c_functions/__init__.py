@@ -360,7 +360,7 @@ class SpawnNamespacesConfig(object):
         self.bottom_halves_child_pid = bottom_halves_child_pid
 
         if parse_conf is None:
-            self.parse_conf = self._default_handler_to_parse_conf
+            self.parse_conf = self.default_handler_to_parse_conf
         elif not getattr(parse_conf, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -381,7 +381,7 @@ class SpawnNamespacesConfig(object):
             setattr(self, 'top_halves_half_sync', top_halves_half_sync)
 
         if top_halves_after_sync is None:
-            self.top_halves_after_sync = self._default_null_handler
+            self.top_halves_after_sync = self.default_null_handler
         elif not getattr(top_halves_after_sync, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -389,7 +389,7 @@ class SpawnNamespacesConfig(object):
 
         if bottom_halves_before_fork is None:
             self.bottom_halves_before_fork = (
-                self._default_bottom_halves_before_fork)
+                self.default_bottom_halves_before_fork)
         elif not getattr(bottom_halves_before_fork, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -398,7 +398,7 @@ class SpawnNamespacesConfig(object):
 
         if bottom_halves_before_sync is None:
             self.bottom_halves_before_sync = (
-                self._default_bottom_halves_before_sync)
+                self.default_bottom_halves_before_sync)
         elif not getattr(bottom_halves_before_sync, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -406,7 +406,7 @@ class SpawnNamespacesConfig(object):
                         bottom_halves_before_sync)
 
         if bottom_halves_half_sync is None:
-            self.bottom_halves_half_sync = self._default_null_handler
+            self.bottom_halves_half_sync = self.default_null_handler
         elif not getattr(bottom_halves_half_sync, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -414,14 +414,14 @@ class SpawnNamespacesConfig(object):
 
         if bottom_halves_after_sync is None:
             self.bottom_halves_after_sync = (
-                self._default_bottom_halves_after_sync)
+                self.default_bottom_halves_after_sync)
         elif not getattr(bottom_halves_after_sync, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_after_sync', bottom_halves_after_sync)
 
         if top_halves_entry_point is None:
-            self.top_halves_entry_point = self._default_top_halves_entry_point
+            self.top_halves_entry_point = self.default_top_halves_entry_point
         elif not getattr(top_halves_entry_point, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -429,7 +429,7 @@ class SpawnNamespacesConfig(object):
 
         if bottom_halves_entry_point is None:
             self.bottom_halves_entry_point = (
-                self._default_bottom_halves_entry_point)
+                self.default_bottom_halves_entry_point)
         elif not getattr(bottom_halves_entry_point, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -437,13 +437,13 @@ class SpawnNamespacesConfig(object):
                         bottom_halves_entry_point)
 
         if entry_point is None:
-            self.entry_point = self._default_entry_point
+            self.entry_point = self.default_entry_point
         elif not getattr(entry_point, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'entry_point', entry_point)
 
-    def _default_entry_point(self, *args, **kwargs):
+    def default_entry_point(self, *args, **kwargs):
         self.parse_conf(*args, **kwargs)
 
         r1, w1 = os.pipe()
@@ -459,7 +459,7 @@ class SpawnNamespacesConfig(object):
         else:
             sys.exit(0)
 
-    def _default_top_halves_entry_point(self, r1, w1, r2, w2, pid,
+    def default_top_halves_entry_point(self, r1, w1, r2, w2, pid,
                                             *args, **kwargs):
         self.top_halves_child_pid = pid
 
@@ -489,7 +489,7 @@ class SpawnNamespacesConfig(object):
         else:
             sys.exit(0)
 
-    def _default_bottom_halves_entry_point(self, r1, w1, r2, w2,
+    def default_bottom_halves_entry_point(self, r1, w1, r2, w2,
                                                *args, **kwargs):
         os.close(r1)
         os.close(w2)
@@ -571,7 +571,7 @@ class SpawnNamespacesConfig(object):
                 sys.exit(0)
 
 
-    def _default_handler_to_parse_conf(self):
+    def default_handler_to_parse_conf(self):
         if self.init_prog is not None or self.nscmd is not None:
             if self.func is not None:
                 raise NamespaceSettingError()
@@ -618,7 +618,7 @@ class SpawnNamespacesConfig(object):
             if self.setgroups != 'allow':
                 raise NamespaceSettingError('do not support setgroups')
 
-        if self._need_super_privilege():
+        if self.need_super_privilege():
             raise NamespaceRequireSuperuserPrivilege()
 
         if self.mountproc:
@@ -694,7 +694,7 @@ class SpawnNamespacesConfig(object):
             if not self.groups_map:
                 self.groups_map = ['0 %d 1' % os.getegid()]
 
-    def _need_super_privilege(self):
+    def need_super_privilege(self):
         require_root_privilege = False
         if not user_namespace_available():
             require_root_privilege = True
@@ -707,19 +707,19 @@ class SpawnNamespacesConfig(object):
             require_root_privilege = (euid != 0)
         return require_root_privilege
 
-    def _default_null_handler(self, *args, **kwargs):
+    def default_null_handler(self, *args, **kwargs):
         pass
 
-    def _default_bottom_halves_before_fork(self, *args, **kwargs):
+    def default_bottom_halves_before_fork(self, *args, **kwargs):
         unshare(self.namespaces)
 
-    def _default_bottom_halves_before_sync(self, *args, **kwargs):
+    def default_bottom_halves_before_sync(self, *args, **kwargs):
         if "mount" in self.namespaces and self.propagation is not None:
             workbench.set_propagation(self.propagation)
         if self.mountproc:
             workbench._mount_proc(mountpoint=self.mountpoint)
 
-    def _default_bottom_halves_after_sync(self, *args, **kwargs):
+    def default_bottom_halves_after_sync(self, *args, **kwargs):
         if self.func is None:
             if not self.nscmd:
                 self.nscmd = [find_shell()]
