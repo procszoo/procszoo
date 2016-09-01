@@ -48,10 +48,8 @@ __all__ = [
     "getdomainname", "setdomainname", "show_available_c_functions",
     "get_namespace", "unregister_fork_handlers", "to_unicode", "to_bytes",
     "get_available_propagations", "__version__", "find_shell",
-    "get_uid_from_name_or_uid", "get_gid_from_name_or_gid",
-    "get_uid_by_name","get_gid_by_name", "get_name_by_uid",
-    "get_name_by_gid", "get_current_users_and_groups",
-    "getresuid", "getresgid", "setresuid", "setresgid"]
+    "get_current_users_and_groups", "getresuid", "getresgid",
+    "setresuid", "setresgid"]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
@@ -106,12 +104,14 @@ def _unregister_fork_handlers(prepare=None, parent=None,
     if strict:
         return _unregister_fork_handlers(prepare, parent, child, strict)
 
+
 def _fork():
     pid = os.fork()
     _errno_c_int = c_int.in_dll(pythonapi, "errno")
     if pid == - 1:
         raise RuntimeError(os.strerror(_errno_c_int.value))
     return pid
+
 
 def _write2file(path, str=None):
     if path is None:
@@ -164,13 +164,6 @@ def _covert_map_to_tuple(_map, map_type=None):
     return tuple([inter_id, outer_id, _range])
 
 
-def _i_am_superuser():
-    return (os.geteuid() == 0)
-
-
-def _i_am_not_superuser():
-    return not _i_am_superuser()
-
 def _accetable_user_map(user_map):
     if not user_map:
         return False
@@ -179,7 +172,7 @@ def _accetable_user_map(user_map):
 
     inter_id, outer_id, _range = _covert_map_to_tuple(user_map, 'user')
 
-    if _i_am_not_superuser():
+    if i_am_not_superuser():
         _id = outer_id
         _max_id = outer_id + _range
         if _range > 3:
@@ -191,6 +184,7 @@ def _accetable_user_map(user_map):
 
     return True
 
+
 def _accetable_group_map(group_map):
     if not group_map:
         return False
@@ -199,7 +193,7 @@ def _accetable_group_map(group_map):
 
     inter_id, outer_id, _range = _covert_map_to_tuple(group_map, 'group')
 
-    if _i_am_not_superuser():
+    if i_am_not_superuser():
         _id = outer_id
         _max_id = outer_id + _range
         if _range > 3:
@@ -301,55 +295,6 @@ def _find_my_init(pathes=None, name=None, file_mode=None, dir_mode=None):
         raise IOError("Permission denied: %s" % err_str)
 
     raise NamespaceSettingError()
-
-
-def is_string_or_unicode(obj):
-    if sys.version_info >= (3, 0):
-        return isinstance(obj, (str, bytes))
-    else:
-        return isinstance(obj, basestring)
-
-if sys.version_info >= (3, 0):
-    def _to_str(bytes_or_str):
-        if isinstance(bytes_or_str, bytes):
-            value = bytes_or_str.decode('utf-8')
-        else:
-            value = bytes_or_str
-        return value
-
-    def _to_bytes(bytes_or_str):
-        if isinstance(bytes_or_str, str):
-            value = bytes_or_str.encode('utf-8')
-        else:
-            value = bytes_or_str
-        return value
-else:
-    def _to_unicode(unicode_or_str):
-        if isinstance(unicode_or_str, str):
-            value = unicode_or_str.decode('utf-8')
-        else:
-            value = unicode_or_str
-        return value
-
-    def _to_str(unicode_or_str):
-        if isinstance(unicode_or_str, unicode):
-            value = unicode_or_str.encode('utf-8')
-        else:
-            value = unicode_or_str
-        return value
-
-def to_unicode(unicode_or_bytes_or_str):
-    if sys.version_info >= (3, 0):
-        return _to_str(unicode_or_bytes_or_str)
-    else:
-        return _to_unicode(unicode_or_bytes_or_str)
-
-def to_bytes(unicode_or_bytes_or_str):
-    if sys.version_info >= (3, 0):
-        return _to_bytes(unicode_or_bytes_or_str)
-    else:
-        return _to_str(unicode_or_bytes_or_str)
-
 
 class SpawnNamespacesConfig(object):
     def __init__(self, namespaces=None, maproot=True, mountproc=True,
@@ -809,6 +754,7 @@ class SpawnNamespacesConfig(object):
         if self.ns_bind_dir is not None and "mount" in self.namespaces:
             workbench.bind_ns_files(self.bottom_halves_child_pid,
                                         self.namespaces, self.ns_bind_dir)
+
 
 class CFunction(object):
     """
@@ -1628,26 +1574,10 @@ def unregister_fork_handlers(prepare=None, parent=None,
                                  child=None, strict=False):
     return workbench.unregister_fork_handlers(prepare, parent, child, strict)
 
-def find_shell(name=None, shell=None):
-    if shell is not None:
-        return shell
-    if name is None:
-        name = 'bash'
-    fpath =pwd.getpwuid(os.geteuid()).pw_shell
-    if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
-        if os.path.basename(fpath).endswith('sh'):
-            return fpath
-
-    if "SHELL" in os.environ:
-        return os.environ.get("SHELL")
-    for path in ["/bin", "/usr/bin", "/usr/loca/bin"]:
-        fpath = "%s/%s" % (path, name)
-        if os.path.isfile(fpath) and os.access(fpath, os.X_OK):
-            return fpath
-    return "sh"
 
 def getresuid():
     return workbench.getresuid()
+
 
 def getresgid():
     return workbench.getresgid()
@@ -1659,38 +1589,6 @@ def setresuid(ruid, euid, suid):
 
 def setresgid(rgid, egid, sgid):
     return workbench.setresgid(rgid, egid, sgid)
-
-
-def get_uid_from_name_or_uid(user_or_uid):
-    try:
-        uid = int(user_or_uid)
-    except ValueError:
-        uid = pwd.getpwnam(user_or_uid).pw_uid
-    return uid
-
-
-def get_gid_from_name_or_gid(group_or_gid):
-    try:
-        gid = int(group_or_gid)
-    except ValueError:
-        gid = grp.getgrnam(group_or_gid).gr_gid        
-    return gid
-
-
-def get_uid_by_name(user):
-    return pwd.getpwnam(user).pw_uid
-
-
-def get_gid_by_name(group):
-    return grp.getgrnam(group).gr_gid
-
-
-def get_name_by_uid(uid):
-    return pwd.getpwuid(uid).pw_name
-
-
-def get_name_by_gid(gid):
-    return grp.getgrgid(gid).gr_name
 
 
 def get_current_users_and_groups(displayer=None):
