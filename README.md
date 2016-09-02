@@ -244,6 +244,7 @@ think that you need learn them all
 
 * objects
     - workbench
+    - SpawnNamespacesConfig
 
 * key functions
     - [spawn\_namespaces](https://github.com/xning/procszoo/wiki/The-spawn_namespace-method-workflow)

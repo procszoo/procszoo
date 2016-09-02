@@ -51,7 +51,7 @@ __all__ = [
     "get_namespace", "unregister_fork_handlers", "to_unicode", "to_bytes",
     "get_available_propagations", "__version__", "find_shell",
     "get_current_users_and_groups", "getresuid", "getresgid",
-    "setresuid", "setresgid"]
+    "setresuid", "setresgid", "SpawnNamespacesConfig"]
 
 _HOST_NAME_MAX = 256
 _CDLL = cdll.LoadLibrary(None)
