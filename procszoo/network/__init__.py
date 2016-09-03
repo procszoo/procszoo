@@ -11,6 +11,7 @@ __all__ = [
     'Pyroute2ModuleUnvailable', 'Pyroute2NetNSUnvailable',
     'get_all_ifnames', 'get_all_ifnames_and_ifindexes',
     'is_ifindex_wireless', 'is_ifname_wireless',
+    'is_all_ifindexes_wireless', 'is_all_ifnames_wireless',
     'get_all_oifindexes_of_default_route', 'get_all_oifnames_of_default_route',
     'create_macvtap', 'add_ifindex_to_ns', 'add_ifname_to_ns', 'del_if',
     ]
@@ -40,11 +41,6 @@ try:
     IW()
 except NetlinkError:
     PYROUTE2_IW_PACKAGE_AVAILABLE = False
-
-
-if PYROUTE2_IW_PACKAGE_AVAILABLE:
-    __all__.append('is_all_ifindexes_wireless')
-    __all__.append('is_all_ifnames_wireless')
 
 
 def get_all_ifnames():
@@ -135,6 +131,8 @@ if PYROUTE2_IW_PACKAGE_AVAILABLE:
                 ret[n] = True
 
         return ret
+else:
+    from procszoo.network.wrappers import *
 
 
 def get_all_oifindexes_of_default_route():
@@ -219,6 +217,3 @@ def del_if(ifname):
     ipr.link('remove', ifname=ifname)
     ipr.close()
 
-
-if not PYROUTE2_IW_PACKAGE_AVAILABLE:
-    from procszoo.network.wrappers import *
