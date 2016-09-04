@@ -298,6 +298,7 @@ def _find_my_init(pathes=None, name=None, file_mode=None, dir_mode=None):
 
     raise NamespaceSettingError()
 
+
 class SpawnNamespacesConfig(object):
     def __init__(self, namespaces=None, maproot=True, mountproc=True,
                 mountpoint=None, ns_bind_dir=None, nscmd=None,
@@ -369,14 +370,14 @@ class SpawnNamespacesConfig(object):
             setattr(self, 'parse_conf', parse_conf)
 
         if top_halves_before_sync is None:
-            self.top_halves_before_sync = self._default_top_halves_before_sync
+            self.top_halves_before_sync = self.default_top_halves_before_sync
         elif not getattr(top_halves_before_sync, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'top_halves_before_sync', top_halves_before_sync)
 
         if top_halves_half_sync is None:
-            self.top_halves_half_sync = self._default_top_halves_half_sync
+            self.top_halves_half_sync = self.default_top_halves_half_sync
         elif not getattr(top_halves_half_sync, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -457,13 +458,12 @@ class SpawnNamespacesConfig(object):
             self.bottom_halves_entry_point(r1, w1, r2, w2, *args, **kwargs)
             sys.exit(0)
         elif pid > 0:
-            self.top_halves_entry_point(r1, w1, r2, w2, pid, *args, **kwargs)
+            self.top_halves_child_pid = pid
+            self.top_halves_entry_point(r1, w1, r2, w2, *args, **kwargs)
         else:
             sys.exit(0)
 
-    def default_top_halves_entry_point(self, r1, w1, r2, w2, pid,
-                                            *args, **kwargs):
-        self.top_halves_child_pid = pid
+    def default_top_halves_entry_point(self, r1, w1, r2, w2, *args, **kwargs):
 
         self.top_halves_before_sync(*args, **kwargs)
 
@@ -741,11 +741,11 @@ class SpawnNamespacesConfig(object):
             else:
                 raise NamespaceSettingError()
 
-    def _default_top_halves_before_sync(self, *args, **kwargs):
+    def default_top_halves_before_sync(self, *args, **kwargs):
         if self.setgroups == "allow" and self.maproot:
             raise NamespaceSettingError()
 
-    def _default_top_halves_half_sync(self, *args, **kwargs):
+    def default_top_halves_half_sync(self, *args, **kwargs):
         if "user" in self.namespaces:
             workbench.setgroups_control(self.setgroups,
                                             self.bottom_halves_child_pid)
@@ -1011,10 +1011,12 @@ class Workbench(object):
 
     def trigger_spawn_namespaces(self, **kwargs):
         extra = None
+
         if 'extra' in kwargs:
             extra = kwargs['extra']
-        if extra and isinstance(extra, dict) and 'trigger_key' in kwargs:
-            key = kwargs['trigger_key']
+
+        if extra and isinstance(extra, dict) and 'trigger_key' in extra:
+            key = extra['trigger_key']
         else:
             key = 'default'
 
