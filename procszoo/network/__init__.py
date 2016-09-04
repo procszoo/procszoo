@@ -199,8 +199,10 @@ def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
     try:
         ipr.link('add', ifname=ifname, kind='macvtap',
                      link=index, macvtap_mode=mode)
-    except:
-        raise RuntimeError('failed to create a macvtap device')
+    except Exception:
+        raise RuntimeError(
+            '%s %s' %  ('failed to create a macvtap device,',
+                            'perhaps you need a latest pyroute2 module'))
     finally:
         ipr.close()
 
@@ -261,25 +263,25 @@ def del_if_by_index(ifindex):
 def down_if_by_name(ifname):
     ipr = IPRoute()
     ifindex = ipr.link_lookup(ifname=ifname)[0]
-    ipr.link_down(ifindex)
+    ipr.link('set', index=ifindex, state='down')
     ipr.close()
 
 
 def up_if_by_name(ifname):
     ipr = IPRoute()
     ifindex = ipr.link_lookup(ifname=ifname)[0]
-    ipr.link_up(ifindex)
+    ipr.link('set', index=ifindex, state='up')
     ipr.close()
 
 def down_if_by_index(ifindex):
     ipr = IPRoute()
-    ipr.link_down(ifindex)
+    ipr.link('set', index=ifindex, state='down')
     ipr.close()
 
 
 def up_if_by_index(ifindex):
     ipr = IPRoute()
-    ipr.link_up(ifindex)
+    ipr.link('set', index=ifindex, state='up')
     ipr.close()
 
 def remove_netns(ns_name):
