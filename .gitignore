@@ -34,3 +34,5 @@ dist/
 # project
 procszoo/c_functions/macros.py
 procszoo/version.py
+procszoo/network/wrappers.py
+procszoo/network/dhcp.py

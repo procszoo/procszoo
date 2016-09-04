@@ -758,6 +758,10 @@ class SpawnNamespacesConfig(object):
                                         self.namespaces, self.ns_bind_dir)
 
 
+def _richard_trigger(**kwargs):
+    SpawnNamespacesConfig(**kwargs).entry_point()
+
+
 class CFunction(object):
     """
     wrapper class for C library function. These functions could be accessed
@@ -799,6 +803,8 @@ class Workbench(object):
         self.namespaces = Namespaces()
         self._init_c_functions()
         self._namespaces_available_status_checked = False
+        self._spawn_namespaces_triggers = {}
+        self.register_spawn_namespaces_trigger('default', _richard_trigger)
 
     def _init_c_functions(self):
         exported_name = "unshare"
@@ -951,12 +957,14 @@ class Workbench(object):
                 self.available_c_functions.append(func_name)
         self.available_c_functions.sort()
 
+
     def _syscall_nr(self, syscall_name):
         func_obj = self.functions["syscall"]
         if syscall_name in func_obj.extra:
             return func_obj.extra[syscall_name]
         else:
             raise CFunctionUnknowSyscall()
+
 
     def __getattr__(self, name):
         if name.startswith("_c_func_"):
@@ -987,6 +995,31 @@ class Workbench(object):
         else:
             raise AttributeError("'CFunction' object has no attribute '%s'"
                                      % name)
+
+
+    def register_spawn_namespaces_trigger(self, key, trigger, strict=None):
+        if strict and key in self._spawn_namespaces_triggers:
+            raise NamespaceSettingError('%s %s' %
+                ('in strict mode you cannot register',
+                     'an already registered trigger'))
+        self._spawn_namespaces_triggers[key] = trigger
+
+
+    def unregister_spawn_namespace_trigger(self, key):
+        del self._spawn_namespaces_triggers[key]
+
+
+    def trigger_spawn_namespaces(self, **kwargs):
+        extra = None
+        if 'extra' in kwargs:
+            extra = kwargs['extra']
+        if extra and isinstance(extra, dict) and 'trigger_key' in kwargs:
+            key = kwargs['trigger_key']
+        else:
+            key = 'default'
+
+        return (self._spawn_namespaces_triggers[key])(**kwargs)
+
 
     def get_available_propagations(self):
         func_obj = self.functions['mount']
@@ -1448,19 +1481,11 @@ class Workbench(object):
         return ns_obj.available
 
 
-    def spawn_namespaces(
-            self, namespaces=None, maproot=True, mountproc=True,
-            mountpoint=None, ns_bind_dir=None, nscmd=None,
-            propagation=None, negative_namespaces=None,
-            setgroups=None, users_map=None, groups_map=None,
-            init_prog=None, func=None, interactive=None):
+    def spawn_namespaces(self, **kwargs):
         """
         workbench.spawn_namespace(namespaces=["pid", "net", "mount"])
         """
-        SpawnNamespacesConfig(
-            namespaces, maproot, mountproc, mountpoint, ns_bind_dir, nscmd,
-            propagation, negative_namespaces,setgroups, users_map, groups_map,
-            init_prog, func, interactive=interactive).entry_point()
+        self.trigger_spawn_namespaces(**kwargs)
 
 
 class CFunctionBaseException(Exception):
@@ -1549,17 +1574,8 @@ def pivot_root(new_root, put_old):
 def adjust_namespaces(namespaces=None, negative_namespaces=None):
     return workbench.adjust_namespaces(namespaces, negative_namespaces)
 
-def spawn_namespaces(namespaces=None, maproot=True, mountproc=True,
-                         mountpoint="/proc", ns_bind_dir=None, nscmd=None,
-                         propagation=None, negative_namespaces=None,
-                         setgroups=None, users_map=None, groups_map=None,
-                         init_prog=None, func=None, interactive=None):
-    return workbench.spawn_namespaces(
-        namespaces=namespaces, maproot=maproot, mountproc=mountproc,
-        mountpoint=mountpoint, ns_bind_dir=ns_bind_dir, nscmd=nscmd,
-        propagation=propagation, negative_namespaces=negative_namespaces,
-        setgroups=setgroups, users_map=users_map, groups_map=groups_map,
-        init_prog=init_prog, func=func, interactive=interactive)
+def spawn_namespaces(**kwargs):
+    return workbench.spawn_namespaces(**kwargs)
 
 def check_namespaces_available_status():
     return workbench.check_namespaces_available_status()
