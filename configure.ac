@@ -48,7 +48,13 @@ if test "${IW:-}"x = "x"; then
 AC_MSG_FAILURE(['iw' command unavailable])
 fi
 
+AC_PATH_PROG(DHCLIENT, dhclient)
+if test "${DHCLIENT:-}"x = "x"; then
+AC_MSG_FAILURE(['dhclient' command unavailable])
+fi
+
 AC_SUBST(IW)
+AC_SUBST(DHCLIENT)
 AC_CONFIG_FILES(procszoo/c_functions/macros.py procszoo/version.py)
-AC_CONFIG_FILES(procszoo/network/wrappers.py)
+AC_CONFIG_FILES(procszoo/network/dhcp.py procszoo/network/wrappers.py)
 AC_OUTPUT

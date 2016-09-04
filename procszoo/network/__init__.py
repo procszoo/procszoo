@@ -1,19 +1,27 @@
 '''
-Reference rtnetlink(7)
+This module gives us a lot functions to maintain and to operate interfaces.
+
+To understand following abbreviated worlds please reference rtnetlink(7)
 '''
 import os
 import sys
 
+from procszoo.c_functions import mount
 from procszoo.utils import printf
 from procszoo.network.exceptions import *
+from procszoo.network.dhcp import dhcp_if
 
 __all__ = [
     'Pyroute2ModuleUnvailable', 'Pyroute2NetNSUnvailable',
-    'get_all_ifnames', 'get_all_ifnames_and_ifindexes',
+    'get_all_ifnames', 'get_all_ifindexes', 'get_all_ifnames_and_ifindexes',
     'is_ifindex_wireless', 'is_ifname_wireless',
     'is_all_ifindexes_wireless', 'is_all_ifnames_wireless',
     'get_all_oifindexes_of_default_route', 'get_all_oifnames_of_default_route',
-    'create_macvtap', 'add_ifindex_to_ns', 'add_ifname_to_ns', 'del_if',
+    'create_macvtap', 'add_ifindex_to_ns', 'dhcp_if',
+    'add_ifname_to_ns', 'add_ifname_to_ns_by_pid',
+    'del_if_by_name', 'del_if_by_index',
+    'down_if_by_name', 'up_if_by_name',
+    'down_if_by_index', 'up_if_by_index',
     ]
 
 
@@ -28,9 +36,9 @@ try:
 except AttributeError:
     raise Pyroute2NetNSUnvailable
 
-
-from pyroute2 import IW
 from pyroute2 import IPRoute
+from pyroute2 import NetNS
+from pyroute2 import IW
 try:
     from pyroute2.netlink.exceptions import NetlinkError
 except ImportError:
@@ -47,6 +55,13 @@ def get_all_ifnames():
     '''get all interface names'''
     ipr = IPRoute()
     ret = [l.get_attr('IFLA_IFNAME') for l in ipr.get_links()]
+    ipr.close()
+    return ret
+
+def get_all_ifindexes():
+    '''get all interface indexes'''
+    ipr = IPRoute()
+    ret = [l.get('index') for l in ipr.get_links()]
     ipr.close()
     return ret
 
@@ -201,6 +216,7 @@ def add_ifindex_to_ns(ifindex, ns):
         ipr.close()
 
 def add_ifname_to_ns(ifname, ns):
+    '''add a interface to the ns net namespace'''
     ipr = IPRoute()
     ifindex = ipr.link_lookup(ifname=ifname)[0]
     try:
@@ -211,9 +227,63 @@ def add_ifname_to_ns(ifname, ns):
     finally:
         ipr.close()
 
+def add_ifname_to_ns_by_pid(ifname, pid, path=None):
+    pid = int(pid)
+    netns_dir = '/var/run/netns'
+    netns = 'net%d' % pid
+    target = '%s/%s' % (netns_dir, netns)
 
-def del_if(ifname):
+    if not os.path.exists(netns_dir):
+        os.makedirs(netns_dir)
+    if not os.path.isdir(netns_dir):
+        raise RuntimeError('%s is not a dir' % netns_dir)
+    if not os.path.exists(target):
+        open(target, 'w+').close()
+
+    if path is None:
+        path = '/proc/%d/ns/net' % pid
+    mount(source=path, target=target, mount_type="bind")
+    add_ifname_to_ns(ifname, netns)
+
+
+def del_if_by_name(ifname):
     ipr = IPRoute()
     ipr.link('remove', ifname=ifname)
     ipr.close()
+
+
+def del_if_by_index(ifindex):
+    ifindex = int(ifindex)
+    ipr = IPRoute()
+    ipr.link_remove(ifindex)
+    ipr.close()
+
+def down_if_by_name(ifname):
+    ipr = IPRoute()
+    ifindex = ipr.link_lookup(ifname=ifname)[0]
+    ipr.link_down(ifindex)
+    ipr.close()
+
+
+def up_if_by_name(ifname):
+    ipr = IPRoute()
+    ifindex = ipr.link_lookup(ifname=ifname)[0]
+    ipr.link_up(ifindex)
+    ipr.close()
+
+def down_if_by_index(ifindex):
+    ipr = IPRoute()
+    ipr.link_down(ifindex)
+    ipr.close()
+
+
+def up_if_by_index(ifindex):
+    ipr = IPRoute()
+    ipr.link_up(ifindex)
+    ipr.close()
+
+def remove_netns(ns_name):
+    netns = NetNS(ns_name)
+    netns.remove()
+    netns.close()
 
