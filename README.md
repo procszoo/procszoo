@@ -49,9 +49,11 @@ Procszoo only requires Python standard libraries and the following packages
     # on RHEL/CentOS >= 6
     sudo yum -y install autoconf gcc make glibc-headers
     sudo yum -y install python-devel python-setuptools
+    sudo yum -y install wireless-tools dhclient
     # Debain/Ubuntu
     sudo apt-get -y install autoconf gcc make libc6-dev
     sudo appt-get -y install python-dev python-setuptools
+    sudo apt-get -y install iw isc-dhcp-client
 
 Install
 -------
@@ -62,6 +64,7 @@ Install
 
 2. You can install the *procszoo* by [pip](https://pypi.python.org/pypi/pip)
 
+        sudo yum -y install python-pip
         sudo pip install procszoo
 
 

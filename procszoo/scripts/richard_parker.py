@@ -204,7 +204,7 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
     def _bottom_halves_after_sync(self):
         up_if_by_name('lo')
         ifnames = get_all_ifnames()
-        # You see, wee a way to kown 'nthXXXX' interface
+        # You see, we need a way to kown 'nthXXXX' interface
         ifname = [n for n in ifnames if n != 'lo'][0]
         up_if_by_name(ifname)
         dhcp_if(ifname)
