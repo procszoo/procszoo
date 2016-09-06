@@ -4,7 +4,6 @@
 import os
 import sys
 import resource
-import atexit
 import re
 from ctypes import (cdll, c_int, c_long, c_char_p, c_size_t, string_at,
                         create_string_buffer, POINTER, c_void_p, CFUNCTYPE,

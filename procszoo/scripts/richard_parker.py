@@ -186,16 +186,23 @@ def main():
 class SpawnNSAndNetwork(SpawnNamespacesConfig):
     def __init__(self, **kwargs):
         super(SpawnNSAndNetwork, self).__init__(**kwargs)
+        self._if_prefix = 'nth'
         self.top_halves_half_sync = self._top_halves_half_sync
         self.bottom_halves_after_sync = self._bottom_halves_after_sync
 
+    def _if_name(self, pid=None, ifname=None):
+        if ifname is not None:
+            return ifname
+        if pid is None:
+            pid = os.getpid()
+        return '%s%d' % (self._if_prefix, pid)
 
     def need_super_privilege(self):
         return os.geteuid() != 0
 
 
     def _top_halves_half_sync(self):
-        ifname = 'nth%d' % self.bottom_halves_child_pid
+        ifname = self._if_name(self.bottom_halves_child_pid)
         create_macvtap(ifname=ifname)
         add_ifname_to_ns_by_pid(ifname, self.bottom_halves_child_pid)
         self.default_top_halves_half_sync()
