@@ -4,10 +4,10 @@ import os, os.path, sys, stat, signal, errno, argparse, time, json, re
 _KILL_PROCESS_TIMEOUT = 5
 _KILL_ALL_PROCESSES_TIMEOUT = 5
 
-_LOG_LEVEL_ERROR = 1
-_LOG_LEVEL_WARN  = 1
-_LOG_LEVEL_INFO  = 2
-_LOG_LEVEL_DEBUG = 3
+LOG_LEVEL_ERROR = 1
+LOG_LEVEL_WARN  = 1
+LOG_LEVEL_INFO  = 2
+LOG_LEVEL_DEBUG = 3
 
 _SHENV_NAME_WHITELIST_REGEX = re.compile('[^\w\-_\.]')
 
@@ -21,19 +21,19 @@ class AlarmException(Exception):
 	pass
 
 def error(message):
-	if _log_level >= _LOG_LEVEL_ERROR:
+	if _log_level >= LOG_LEVEL_ERROR:
 		sys.stderr.write("*** %s\n" % message)
 
 def warn(message):
-	if _log_level >= _LOG_LEVEL_WARN:
+	if _log_level >= LOG_LEVEL_WARN:
 		sys.stderr.write("*** %s\n" % message)
 
 def info(message):
-	if _log_level >= _LOG_LEVEL_INFO:
+	if _log_level >= LOG_LEVEL_INFO:
 		sys.stderr.write("*** %s\n" % message)
 
 def debug(message):
-	if _log_level >= _LOG_LEVEL_DEBUG:
+	if _log_level >= LOG_LEVEL_DEBUG:
 		sys.stderr.write("*** %s\n" % message)
 
 def ignore_signals_and_raise_keyboard_interrupt(signame):
@@ -337,13 +337,13 @@ def get_options():
         action = 'store_const', const = False, default = True,
         help = 'Don\'t kill all processes on the system upon exiting')
     parser.add_argument('--quiet', dest = 'log_level',
-        action = 'store_const', const = _LOG_LEVEL_WARN, default = _LOG_LEVEL_INFO,
+        action = 'store_const', const = LOG_LEVEL_WARN, default = LOG_LEVEL_INFO,
         help = 'Only print warnings and errors')
     return parser.parse_args()
 
 def main(
         main_command=None, enable_insecure_key=False, skip_startup_files=False,
-        skip_runit=False, kill_all_on_exit=True, log_level=_LOG_LEVEL_INFO,
+        skip_runit=False, kill_all_on_exit=True, log_level=LOG_LEVEL_INFO,
         run_as_cli=True):
     global _log_level;
     if run_as_cli:

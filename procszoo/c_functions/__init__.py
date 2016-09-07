@@ -25,9 +25,7 @@ from procszoo.namespaces import *
 from procszoo.version import PROCSZOO_VERSION
 from procszoo.c_functions.macros import *
 from procszoo.c_functions.atfork import atfork as c_atfork
-
-_this_module_absdir = os.path.dirname(os.path.abspath(__file__))
-_procszoo_scripts_dir = os.path.abspath('%s/../scripts' % _this_module_absdir)
+from procszoo.scripts import my_init
 
 if os.uname()[0] != "Linux":
     raise ImportError("only support Linux platform")
@@ -239,64 +237,6 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
         except IOError:
             raise NamespaceRequireSuperuserPrivilege()
 
-def _find_my_init(pathes=None, name=None, file_mode=None, dir_mode=None):
-    if pathes is None:
-        pathes = [_procszoo_scripts_dir]
-        if 'PATH' in os.environ:
-            pathes += os.environ['PATH'].split(':')
-
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        absdir = os.path.abspath("%s/../.." % cwd)
-        pathes += [path for path in ["%s/lib/procszoo" % absdir,
-                    "%s/bin" % absdir,
-                    "/usr/local/lib/procszoo",
-                    "/usr/lib/procszoo"] if os.path.exists(path)]
-    if name is None:
-        name = "my_init"
-
-    if file_mode is None:
-        file_mode = os.R_OK
-    if dir_mode is None:
-        dir_mode = os.R_OK
-
-    for path in pathes:
-        my_init = "%s/%s" % (path, name)
-        if os.path.exists(my_init):
-            if os.access(my_init, file_mode):
-                return my_init
-
-    dirs_access_refused = []
-    files_access_refused = []
-    for path in pathes:
-        my_init = "%s/%s" % (path, name)
-        dirs = my_init.split('/')
-        tmp_path = '/'
-        for path_name in dirs:
-            if not path_name: continue
-            tmp_path = os.path.join(tmp_path, path_name)
-            if tmp_path in dirs_access_refused: break
-            if tmp_path in files_access_refused: break
-            if os.path.exists(tmp_path):
-                if os.path.isdir(tmp_path):
-                    if not os.access(tmp_path, dir_mode):
-                        dirs_access_refused.append(tmp_path)
-                        break
-                elif os.path.isfile(tmp_path):
-                    if not os.access(tmp_path, file_mode):
-                        files_access_refused.append(tmp_path)
-                        break
-
-    if dirs_access_refused or files_access_refused:
-        if len(dirs_access_refused) + len(files_access_refused) > 1:
-            err_str = "[%s]" % "\n".join(
-                dirs_access_refused + files_access_refused)
-        else:
-            err_str = "'%s'" % " ".join(
-                dirs_access_refused + files_access_refused)
-        raise IOError("Permission denied: %s" % err_str)
-
-    raise NamespaceSettingError()
-
 
 class SpawnNamespacesConfig(object):
     def __init__(self, namespaces=None, maproot=True, mountproc=True,
@@ -341,7 +281,6 @@ class SpawnNamespacesConfig(object):
         self.users_map = users_map
         self.groups_map = groups_map
         self.init_prog = init_prog
-        self.my_init = _find_my_init()
         self.func = func
         if interactive is None:
             self.interactive = True
@@ -726,14 +665,21 @@ class SpawnNamespacesConfig(object):
                 self.nscmd = [find_shell()]
             elif not isinstance(self.nscmd, list):
                 self.nscmd = [self.nscmd]
+
+            _args = None
             if "pid" not in self.namespaces:
-                args = self.nscmd
+                _args = self.nscmd
             elif self.init_prog is not None:
-                args = [self.init_prog] + self.nscmd
+                _args = [self.init_prog] + self.nscmd
+
+            if _args:
+                os.execlp(args[0], *args)
             else:
-                args = [sys.executable, self.my_init, "--skip-startup-files",
-                        "--skip-runit", "--quiet"] + self.nscmd
-            os.execlp(args[0], *args)
+                my_init.main(
+                    enable_insecure_key=False, skip_startup_files=True,
+                    skip_runit=True, log_level=my_init.LOG_LEVEL_WARN,
+                    main_command=self.nscmd, run_as_cli=False)
+
         else:
             if hasattr(self.func, '__call__'):
                 self.func(*args, **kwargs)
@@ -796,7 +742,6 @@ class Workbench(object):
     class used as a singleton.
     """
     def __init__(self):
-        self.my_init = _find_my_init()
         self.functions = {}
         self.available_c_functions = []
         self.namespaces = Namespaces()
