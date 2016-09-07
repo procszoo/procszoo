@@ -267,24 +267,24 @@ def install_insecure_key():
 	info("Installing insecure SSH key for user root")
 	run_command_killable("/usr/sbin/enable_insecure_key")
 
-def init(args):
+def init(enable_insecure_key, skip_startup_files, skip_runit, main_command):
 	import_envvars(False, False)
 	export_envvars()
 
-	if args.enable_insecure_key:
+	if enable_insecure_key:
 		install_insecure_key()
 
-	if not args.skip_startup_files:
+	if not skip_startup_files:
 		run_startup_files()
 	
 	runit_exited = False
 	exit_code = None
 
-	if not args.skip_runit:
+	if not skip_runit:
 		runit_pid = start_runit()
 	try:
 		exit_status = None
-		if len(args.main_command) == 0:
+		if len(main_command) == 0:
 			runit_exited, exit_code = wait_for_runit_or_interrupt(runit_pid)
 			if runit_exited:
 				if exit_code is None:
@@ -294,26 +294,26 @@ def init(args):
 					exit_status = os.WEXITSTATUS(exit_code)
 					info("Runit exited with status %d" % exit_status)
 		else:
-			info("Running %s..." % " ".join(args.main_command))
-			pid = os.spawnvp(os.P_NOWAIT, args.main_command[0], args.main_command)
+			info("Running %s..." % " ".join(main_command))
+			pid = os.spawnvp(os.P_NOWAIT, main_command[0], main_command)
 			try:
 				exit_code = waitpid_reap_other_children(pid)
 				if exit_code is None:
-					info("%s exited with unknown status." % args.main_command[0])
+					info("%s exited with unknown status." % main_command[0])
 					exit_status = 1
 				else:
 					exit_status = os.WEXITSTATUS(exit_code)
-					info("%s exited with status %d." % (args.main_command[0], exit_status))
+					info("%s exited with status %d." % (main_command[0], exit_status))
 			except KeyboardInterrupt:
-				stop_child_process(args.main_command[0], pid)
+				stop_child_process(main_command[0], pid)
 				raise
 			except BaseException as s:
 				warn("An error occurred. Aborting.")
-				stop_child_process(args.main_command[0], pid)
+				stop_child_process(main_command[0], pid)
 				raise
 		sys.exit(exit_status)
 	finally:
-		if not args.skip_runit:
+		if not skip_runit:
 			shutdown_runit_services()
 			if not runit_exited:
 				stop_child_process("runit daemon", runit_pid)
@@ -341,13 +341,27 @@ def get_options():
         help = 'Only print warnings and errors')
     return parser.parse_args()
 
-def main():
-    args = get_options()
+def main(
+        main_command=None, enable_insecure_key=False, skip_startup_files=False,
+        skip_runit=False, kill_all_on_exit=True, log_level=_LOG_LEVEL_INFO,
+        run_as_cli=True):
     global _log_level;
-    _log_level = args.log_level
+    if run_as_cli:
+        args = get_options()
+        main_command = args.main_command
+        enable_insecure_key = args.enable_insecure_key
+        skip_startup_files = args.skip_startup_files
+        skip_runit = args.skip_runit
+        kill_all_on_exit = args.kill_all_on_exit
+        _log_level = args.log_level
+    else:
+        _log_level = log_level
 
-    if args.skip_runit and len(args.main_command) == 0:
-        error("When --skip-runit is given, you must also pass a main command.")
+    if skip_runit and len(main_command) == 0:
+        if run_as_cli:
+            error('When --skip-runit is given, you must also pass a main command.')
+        else:
+            error('When skip_runit is given, you must also pass a main command.')
         sys.exit(1)
 
     # Run main function.
@@ -358,12 +372,12 @@ def main():
     signal.signal(signal.SIGALRM, lambda signum, frame: raise_alarm_exception())
 
     try:
-        init(args)
+        init(enable_insecure_key, skip_startup_files, skip_runit, main_command)
     except KeyboardInterrupt:
         warn("Init system aborted.")
         exit(2)
     finally:
-        if args.kill_all_on_exit:
+        if kill_all_on_exit:
             kill_all_processes(_KILL_ALL_PROCESSES_TIMEOUT)
 
 if __name__ == '__main__':
