@@ -1,6 +1,6 @@
 import os
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, REMAINDER
 import traceback
 from procszoo.c_functions import *
 from procszoo.utils import *
@@ -94,7 +94,7 @@ def get_options():
                         dest="show_available_c_functions",
                         help="show available C functions",
                         default=False)
-    parser.add_argument('nscmd', nargs='*', action="store", default=None)
+    parser.add_argument('nscmd', nargs=REMAINDER, action="store", default=None)
 
     return parser.parse_args()
 

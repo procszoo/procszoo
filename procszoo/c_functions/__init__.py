@@ -1,6 +1,3 @@
-# Copyright 2016 Red Hat, Inc. All Rights Reserved.
-# Licensed to GPL under a Contributor Agreement.
-
 import os
 import sys
 import resource
@@ -258,6 +255,8 @@ class SpawnNamespacesConfig(object):
                 bottom_halves_before_sync=None,
                 bottom_halves_half_sync=None,
                 bottom_halves_after_sync=None,
+                bottom_halves_init=None,
+                bottom_halves_exit=None,
                 top_halves_entry_point=None,
                 bottom_halves_entry_point=None,
                      entry_point=None):
@@ -360,6 +359,21 @@ class SpawnNamespacesConfig(object):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_after_sync', bottom_halves_after_sync)
+
+        if bottom_halves_init is None:
+            self.bottom_halves_init = (self.default_bottom_halves_init)
+        elif not getattr(bottom_halves_init, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
+        else:
+            setattr(self, 'bottom_halves_init', bottom_halves_init)
+
+        if bottom_halves_exit is None:
+            self.bottom_halves_exit = (
+                self.default_bottom_halves_exit)
+        elif not getattr(bottom_halves_exit, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
+        else:
+            setattr(self, 'bottom_halves_exit', bottom_halves_exit)
 
         if top_halves_entry_point is None:
             self.top_halves_entry_point = self.default_top_halves_entry_point
@@ -659,6 +673,12 @@ class SpawnNamespacesConfig(object):
         if self.mountproc:
             workbench._mount_proc(mountpoint=self.mountpoint)
 
+    def default_bottom_halves_init(self, *args, **kwargs):
+        my_init.main(*args, **kwargs)
+
+    def default_bottom_halves_exit(self, *args, **kwargs):
+        my_init.kill_all_processes(*args, **kwargs)
+
     def default_bottom_halves_after_sync(self, *args, **kwargs):
         if self.func is None:
             if not self.nscmd:
@@ -675,11 +695,12 @@ class SpawnNamespacesConfig(object):
             if _args:
                 os.execlp(args[0], *args)
             else:
-                my_init.main(
+                self.bottom_halves_init(
                     enable_insecure_key=False, skip_startup_files=True,
                     skip_runit=True, log_level=my_init.LOG_LEVEL_WARN,
-                    main_command=self.nscmd, run_as_cli=False)
-
+                    main_command=self.nscmd, run_as_cli=False,
+                    kill_all_on_exit=False)
+                self.default_bottom_halves_exit(my_init.KILL_ALL_PROCESSES_TIMEOUT)
         else:
             if hasattr(self.func, '__call__'):
                 self.func(*args, **kwargs)

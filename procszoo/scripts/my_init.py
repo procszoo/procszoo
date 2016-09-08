@@ -1,8 +1,8 @@
 #!/usr/bin/python3 -u
 import os, os.path, sys, stat, signal, errno, argparse, time, json, re
 
-_KILL_PROCESS_TIMEOUT = 5
-_KILL_ALL_PROCESSES_TIMEOUT = 5
+KILL_PROCESS_TIMEOUT = 5
+KILL_ALL_PROCESSES_TIMEOUT = 5
 
 LOG_LEVEL_ERROR = 1
 LOG_LEVEL_WARN  = 1
@@ -143,7 +143,7 @@ def waitpid_reap_other_children(pid):
 				raise
 	return status
 
-def stop_child_process(name, pid, signo = signal.SIGTERM, time_limit = _KILL_PROCESS_TIMEOUT):
+def stop_child_process(name, pid, signo = signal.SIGTERM, time_limit = KILL_PROCESS_TIMEOUT):
 	info("Shutting down %s (PID %d)..." % (name, pid))
 	try:
 		os.kill(pid, signo)
@@ -341,10 +341,18 @@ def get_options():
         help = 'Only print warnings and errors')
     return parser.parse_args()
 
-def main(
-        main_command=None, enable_insecure_key=False, skip_startup_files=False,
-        skip_runit=False, kill_all_on_exit=True, log_level=LOG_LEVEL_INFO,
-        run_as_cli=True):
+def _settle_signals():
+    signal.signal(signal.SIGTERM, lambda signum, frame:
+                      ignore_signals_and_raise_keyboard_interrupt('SIGTERM'))
+    signal.signal(signal.SIGINT, lambda signum, frame:
+                      ignore_signals_and_raise_keyboard_interrupt('SIGINT'))
+    signal.signal(signal.SIGALRM, lambda signum, frame: raise_alarm_exception())
+
+
+def main(main_command=None, enable_insecure_key=False, skip_startup_files=False,
+             skip_runit=False, kill_all_on_exit=True, log_level=LOG_LEVEL_INFO,
+             run_as_cli=True, handler_to_settle_signals=_settle_signals):
+
     global _log_level;
     if run_as_cli:
         args = get_options()
@@ -364,12 +372,7 @@ def main(
             error('When skip_runit is given, you must also pass a main command.')
         sys.exit(1)
 
-    # Run main function.
-    signal.signal(signal.SIGTERM, lambda signum, frame:
-                      ignore_signals_and_raise_keyboard_interrupt('SIGTERM'))
-    signal.signal(signal.SIGINT, lambda signum, frame:
-                      ignore_signals_and_raise_keyboard_interrupt('SIGINT'))
-    signal.signal(signal.SIGALRM, lambda signum, frame: raise_alarm_exception())
+    handler_to_settle_signals()
 
     try:
         init(enable_insecure_key, skip_startup_files, skip_runit, main_command)
@@ -378,7 +381,7 @@ def main(
         exit(2)
     finally:
         if kill_all_on_exit:
-            kill_all_processes(_KILL_ALL_PROCESSES_TIMEOUT)
+            kill_all_processes(KILL_ALL_PROCESSES_TIMEOUT)
 
 if __name__ == '__main__':
     main()
