@@ -5,6 +5,8 @@ To understand following abbreviated worlds please reference rtnetlink(7)
 '''
 import os
 import sys
+import logging
+logging.basicConfig(level=logging.FATAL)
 
 from procszoo.c_functions import mount
 from procszoo.namespaces import *

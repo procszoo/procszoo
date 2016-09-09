@@ -9,7 +9,6 @@ from procszoo.c_functions import *
 from procszoo.utils import *
 from procszoo.network import *
 
-
 def get_options():
     propagation_types = get_available_propagations()
     available_namespaces = [
@@ -116,7 +115,6 @@ def get_extra(args):
             data['hostname'] = args.hostname
         if args.bridge:
             data['bridge'] = args.bridge
-        self.data['ifname'] = {'type': args.network}
 
     return extra
 
