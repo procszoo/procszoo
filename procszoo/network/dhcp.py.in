@@ -11,7 +11,8 @@ if hasattr(os, "devnull"):
 devnull_fd = os.open(devnull, os.O_RDWR)
 
 
-def dhcp_if(ifname, ipv4=True, ipv6=None, port=68, timeout=None):
+def dhcp_if(ifname, ipv4=True, ipv6=None, port=68,
+                timeout=None, leases=None):
     _cmd = [_dhclient]
     if ipv4 and ipv6:
         raise RuntimeError('cannot use both "ipv4" and "ipv6" options')
@@ -27,7 +28,10 @@ def dhcp_if(ifname, ipv4=True, ipv6=None, port=68, timeout=None):
         timeout = int(timeout)
         _cmd.append('--timeout')
         _cmd.append('%d' % timeout)
-        
+    if leases:
+        _cmd.append('-lf')
+        _cmd.append(leases)
+
     _cmd.append(ifname)
     try:
         check_call(_cmd, stdout=devnull_fd, stderr=devnull_fd)

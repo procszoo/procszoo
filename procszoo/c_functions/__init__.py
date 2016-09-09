@@ -248,15 +248,17 @@ class SpawnNamespacesConfig(object):
                 top_halves_child_pid=None,
                 bottom_halves_child_pid=None,
                 parse_conf=None,
+                top_halves_before_fork=None,
                 top_halves_before_sync=None,
                 top_halves_half_sync=None,
                 top_halves_after_sync=None,
+                top_halves_before_exit=None,
                 bottom_halves_before_fork=None,
                 bottom_halves_before_sync=None,
                 bottom_halves_half_sync=None,
                 bottom_halves_after_sync=None,
-                bottom_halves_init=None,
-                bottom_halves_exit=None,
+                bottom_halves_main=None,
+                bottom_halves_before_exit=None,
                 top_halves_entry_point=None,
                 bottom_halves_entry_point=None,
                      entry_point=None):
@@ -306,6 +308,13 @@ class SpawnNamespacesConfig(object):
         else:
             setattr(self, 'parse_conf', parse_conf)
 
+        if top_halves_before_fork is None:
+            self.top_halves_before_fork = self.default_null_handler
+        elif not getattr(top_halves_before_fork, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
+        else:
+            setattr(self, 'top_halves_before_fork', top_halves_before_fork)
+
         if top_halves_before_sync is None:
             self.top_halves_before_sync = self.default_top_halves_before_sync
         elif not getattr(top_halves_before_sync, '__call__'):
@@ -326,6 +335,13 @@ class SpawnNamespacesConfig(object):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'top_halves_after_sync', top_halves_after_sync)
+
+        if top_halves_before_exit is None:
+            self.top_halves_before_exit = self.default_null_handler
+        elif not getattr(top_halves_before_exit, '__call__'):
+            raise NamespaceSettingError('handler must be a callable')
+        else:
+            setattr(self, 'top_halves_before_exit', top_halves_before_exit)
 
         if bottom_halves_before_fork is None:
             self.bottom_halves_before_fork = (
@@ -360,20 +376,20 @@ class SpawnNamespacesConfig(object):
         else:
             setattr(self, 'bottom_halves_after_sync', bottom_halves_after_sync)
 
-        if bottom_halves_init is None:
-            self.bottom_halves_init = (self.default_bottom_halves_init)
-        elif not getattr(bottom_halves_init, '__call__'):
+        if bottom_halves_main is None:
+            self.bottom_halves_main = (self.default_bottom_halves_main)
+        elif not getattr(bottom_halves_main, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
-            setattr(self, 'bottom_halves_init', bottom_halves_init)
+            setattr(self, 'bottom_halves_main', bottom_halves_main)
 
-        if bottom_halves_exit is None:
-            self.bottom_halves_exit = (
-                self.default_bottom_halves_exit)
-        elif not getattr(bottom_halves_exit, '__call__'):
+        if bottom_halves_before_exit is None:
+            self.bottom_halves_before_exit = (
+                self.default_bottom_halves_before_exit)
+        elif not getattr(bottom_halves_before_exit, '__call__'):
             raise NamespaceSettingError('handler must be a callable')
         else:
-            setattr(self, 'bottom_halves_exit', bottom_halves_exit)
+            setattr(self, 'bottom_halves_before_exit', bottom_halves_before_exit)
 
         if top_halves_entry_point is None:
             self.top_halves_entry_point = self.default_top_halves_entry_point
@@ -403,6 +419,8 @@ class SpawnNamespacesConfig(object):
 
         r1, w1 = os.pipe()
         r2, w2 = os.pipe()
+
+        self.top_halves_before_fork(*args, **kwargs)
 
         pid = _fork()
 
@@ -440,8 +458,11 @@ class SpawnNamespacesConfig(object):
 
         if self.interactive:
             os.waitpid(self.top_halves_child_pid, 0)
+            self.top_halves_before_exit(*args, **kwargs)
         else:
-            sys.exit(0)
+            self.top_halves_before_exit(*args, **kwargs)
+
+        sys.exit(0)
 
     def default_bottom_halves_entry_point(self, r1, w1, r2, w2,
                                                *args, **kwargs):
@@ -673,10 +694,10 @@ class SpawnNamespacesConfig(object):
         if self.mountproc:
             workbench._mount_proc(mountpoint=self.mountpoint)
 
-    def default_bottom_halves_init(self, *args, **kwargs):
+    def default_bottom_halves_main(self, *args, **kwargs):
         my_init.main(*args, **kwargs)
 
-    def default_bottom_halves_exit(self, *args, **kwargs):
+    def default_bottom_halves_before_exit(self, *args, **kwargs):
         my_init.kill_all_processes(*args, **kwargs)
 
     def default_bottom_halves_after_sync(self, *args, **kwargs):
@@ -695,12 +716,13 @@ class SpawnNamespacesConfig(object):
             if _args:
                 os.execlp(args[0], *args)
             else:
-                self.bottom_halves_init(
+                self.bottom_halves_main(
                     enable_insecure_key=False, skip_startup_files=True,
                     skip_runit=True, log_level=my_init.LOG_LEVEL_WARN,
                     main_command=self.nscmd, run_as_cli=False,
                     kill_all_on_exit=False)
-                self.default_bottom_halves_exit(my_init.KILL_ALL_PROCESSES_TIMEOUT)
+                self.default_bottom_halves_before_exit(
+                    my_init.KILL_ALL_PROCESSES_TIMEOUT)
         else:
             if hasattr(self.func, '__call__'):
                 self.func(*args, **kwargs)

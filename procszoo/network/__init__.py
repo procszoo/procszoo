@@ -7,6 +7,7 @@ import os
 import sys
 
 from procszoo.c_functions import mount
+from procszoo.namespaces import *
 from procszoo.utils import printf
 from procszoo.network.exceptions import *
 from procszoo.network.dhcp import dhcp_if
@@ -18,10 +19,11 @@ __all__ = [
     'is_all_ifindexes_wireless', 'is_all_ifnames_wireless',
     'get_all_oifindexes_of_default_route', 'get_all_oifnames_of_default_route',
     'create_macvtap', 'add_ifindex_to_ns', 'dhcp_if',
-    'add_ifname_to_ns', 'add_ifname_to_ns_by_pid',
+    'add_ifname_to_ns', 'add_ifname_to_ns_by_pid', 'del_netns_by_name',
     'del_if_by_name', 'del_if_by_index',
     'down_if_by_name', 'up_if_by_name',
     'down_if_by_index', 'up_if_by_index',
+    'get_up_ifindexes', 'get_up_ifnames',
     ]
 
 
@@ -30,14 +32,13 @@ try:
 except ImportError:
     raise Pyroute2ModuleUnvailable
 
-
 try:
-    pyroute2.NetNS
+    from pyroute2 import netns
 except AttributeError:
     raise Pyroute2NetNSUnvailable
 
 from pyroute2 import IPRoute
-from pyroute2 import NetNS
+from pyroute2 import netns
 from pyroute2 import IW
 try:
     from pyroute2.netlink.exceptions import NetlinkError
@@ -58,6 +59,7 @@ def get_all_ifnames():
     ipr.close()
     return ret
 
+
 def get_all_ifindexes():
     '''get all interface indexes'''
     ipr = IPRoute()
@@ -73,6 +75,22 @@ def get_all_ifnames_and_ifindexes():
                for l in ipr.get_links()]
     ipr.close()
     return dict(ret)
+
+
+def get_up_ifindexes():
+    ipr = IPRoute()
+    ret = ipr.link_lookup(operstate='UP')
+    ipr.close()
+    return ret
+
+def get_up_ifnames():
+    ipr = IPRoute()
+    idx_list = ipr.link_lookup(operstate='UP')
+    if not idx_list: return []
+    links = ipr.get_links(idx_list)
+    name_list = [l.get_attr('IFLA_IFNAME') for l in links]
+    ipr.close()
+    return name_list
 
 
 if PYROUTE2_IW_PACKAGE_AVAILABLE:
@@ -185,7 +203,8 @@ def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
         ifs = [idx for idx in get_all_oifindexes_of_default_route()
                    if not is_ifindex_wireless(idx)]
         if not ifs:
-            raise RuntimeError('do not know use whick network device')
+            raise NamespaceSettingError(
+                'no default route for us to determine interface')
         else:
             index = ifs[0]
     else:
@@ -229,8 +248,13 @@ def add_ifname_to_ns(ifname, ns):
     finally:
         ipr.close()
 
-def add_ifname_to_ns_by_pid(ifname, pid, path=None):
-    pid = int(pid)
+def add_ifname_to_ns_by_pid(ifname, pid=None, path=None):
+    if pid is None:
+        pid = os.getpid()
+    try:
+        pid = int(pid)
+    except ValueError:
+        raise NamespaceSettingError()
     netns_dir = '/var/run/netns'
     netns = 'net%d' % pid
     target = '%s/%s' % (netns_dir, netns)
@@ -247,6 +271,8 @@ def add_ifname_to_ns_by_pid(ifname, pid, path=None):
     mount(source=path, target=target, mount_type="bind")
     add_ifname_to_ns(ifname, netns)
 
+def del_netns_by_name(ns):
+    netns.remove(ns)
 
 def del_if_by_name(ifname):
     ipr = IPRoute()
