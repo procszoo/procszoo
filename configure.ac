@@ -1,5 +1,5 @@
 m4_define(PROCSZOO_VERSION, m4_esyscmd([tr -d '\n' < VERSION]))
-AC_INIT(procszoo, PROCSZOO_VERSION, https://github.com/xning/procszoo)
+AC_INIT(procszoo, PROCSZOO_VERSION, https://github.com/procszoo/procszoo)
 
 m4_ifdef([AC_COMPUTE_INT], [], [
   AC_DEFUN([AC_COMPUTE_INT], [_AC_COMPUTE_INT([$2],[$1],[$3],[$4])])

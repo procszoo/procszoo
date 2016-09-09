@@ -27,7 +27,7 @@ setup(
     author='xning',
     author_email='anzhou94@gmail.com',
     packages = find_packages(),
-    url='https://github.com/xning/procszoo',
+    url='https://github.com/procszoo/procszoo',
     use_2to3=False,
     entry_points={
         'console_scripts':[

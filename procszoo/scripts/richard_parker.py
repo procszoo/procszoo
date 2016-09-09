@@ -15,7 +15,7 @@ def get_options():
         ns_status[0] for ns_status in show_namespaces_status()
                                  if ns_status[1]]
     prog = os.path.basename(sys.argv[0]) or 'richard_parker'
-    project_url = "http://github.com/xning/procszoo"
+    project_url = "http://github.com/procszoo/procszoo"
     description = "%s, %s" % (
         'A simple cli to create new namespaces env',
         'default it will enable each available namespaces.')

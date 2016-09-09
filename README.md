@@ -7,7 +7,7 @@ Procszoo is a small Python module that gives you full
 power to manage your processes by Linux namespaces.
 
 ## Contents
-- [Wiki](https://github.com/xning/procszoo/wiki)
+- [Wiki](https://github.com/procszoo/procszoo/wiki)
 - [Goals](#goals)
 - [Resources](#resources)
 - [Requirements](#requirements)
@@ -60,7 +60,7 @@ Install
 -------
 1. You can install the *procszoo* by [setuptools](https://pypi.python.org/pypi/setuptools)
 
-        git clone https://github.com/xning/procszoo.git
+        git clone https://github.com/procszoo/procszoo.git
         cd procszoo && sudo ./setup.py install
 
 2. You can install the *procszoo* by [pip](https://pypi.python.org/pypi/pip)
@@ -73,7 +73,7 @@ Building
 --------
 If you don't want to install it, then you can just clone it and do as the following commands,
 
-    git clone https://github.com/xning/procszoo.git
+    git clone https://github.com/procszoo/procszoo.git
     cd procszoo && make
 
 By default, the above commands will build the program for your default Python version.
@@ -237,7 +237,7 @@ namespace in this new terminal
     >     Object "nets" is unknown, try "ip help".
 
     We need a more latest iproute package, to do that please refer to
-    [here](https://github.com/xning/procszoo/wiki/How-to-build-iproute-and-python-pyroute2-that-supports-net-namespace%3F)
+    [here](https://github.com/procszoo/procszoo/wiki/How-to-build-iproute-and-python-pyroute2-that-supports-net-namespace%3F)
 
 ## Exported Functions, Objects, and Helpful CLI
 -----------------------------------------------
@@ -250,7 +250,7 @@ think that you need learn them all
     - SpawnNamespacesConfig
 
 * key functions
-    - [spawn\_namespaces](https://github.com/xning/procszoo/wiki/The-spawn_namespace-method-workflow)
+    - [spawn\_namespaces](https://github.com/procszoo/procszoo/wiki/The-spawn_namespace-method-workflow)
     - check\_namespaces\_available\_status
 
 * helpful functions
@@ -297,7 +297,7 @@ think that you need learn them all
 
 * Helpful CLI
     - richard\_parker
-    - [mamaji](https://github.com/xning/procszoo/wiki/mamaji-command-line)
+    - [mamaji](https://github.com/procszoo/procszoo/wiki/mamaji-command-line)
 
 ## Test Platforms
 ----------------
