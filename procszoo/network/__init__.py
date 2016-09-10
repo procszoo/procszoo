@@ -12,7 +12,7 @@ from procszoo.c_functions import mount
 from procszoo.namespaces import *
 from procszoo.utils import printf
 from procszoo.network.exceptions import *
-from procszoo.network.dhcp import dhcp_if
+from procszoo.network.dhcp import *
 
 __all__ = [
     'Pyroute2ModuleUnvailable', 'Pyroute2NetNSUnvailable',
@@ -26,6 +26,7 @@ __all__ = [
     'down_if_by_name', 'up_if_by_name',
     'down_if_by_index', 'up_if_by_index',
     'get_up_ifindexes', 'get_up_ifnames',
+    'DHCPFailed',
     ]
 
 

@@ -303,42 +303,42 @@ class SpawnNamespacesConfig(object):
 
         if parse_conf is None:
             self.parse_conf = self.default_handler_to_parse_conf
-        elif not getattr(parse_conf, '__call__'):
+        elif not callable(parse_conf):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'parse_conf', parse_conf)
 
         if top_halves_before_fork is None:
             self.top_halves_before_fork = self.default_null_handler
-        elif not getattr(top_halves_before_fork, '__call__'):
+        elif not callable(top_halves_before_fork):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'top_halves_before_fork', top_halves_before_fork)
 
         if top_halves_before_sync is None:
             self.top_halves_before_sync = self.default_top_halves_before_sync
-        elif not getattr(top_halves_before_sync, '__call__'):
+        elif not callable(top_halves_before_sync):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'top_halves_before_sync', top_halves_before_sync)
 
         if top_halves_half_sync is None:
             self.top_halves_half_sync = self.default_top_halves_half_sync
-        elif not getattr(top_halves_half_sync, '__call__'):
+        elif not callable(top_halves_half_sync):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'top_halves_half_sync', top_halves_half_sync)
 
         if top_halves_after_sync is None:
             self.top_halves_after_sync = self.default_null_handler
-        elif not getattr(top_halves_after_sync, '__call__'):
+        elif not callable(top_halves_after_sync):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'top_halves_after_sync', top_halves_after_sync)
 
         if top_halves_before_exit is None:
             self.top_halves_before_exit = self.default_null_handler
-        elif not getattr(top_halves_before_exit, '__call__'):
+        elif not callable(top_halves_before_exit):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'top_halves_before_exit', top_halves_before_exit)
@@ -346,7 +346,7 @@ class SpawnNamespacesConfig(object):
         if bottom_halves_before_fork is None:
             self.bottom_halves_before_fork = (
                 self.default_bottom_halves_before_fork)
-        elif not getattr(bottom_halves_before_fork, '__call__'):
+        elif not callable(bottom_halves_before_fork):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_before_fork',
@@ -355,7 +355,7 @@ class SpawnNamespacesConfig(object):
         if bottom_halves_before_sync is None:
             self.bottom_halves_before_sync = (
                 self.default_bottom_halves_before_sync)
-        elif not getattr(bottom_halves_before_sync, '__call__'):
+        elif not callable(bottom_halves_before_sync):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_before_sync',
@@ -363,7 +363,7 @@ class SpawnNamespacesConfig(object):
 
         if bottom_halves_half_sync is None:
             self.bottom_halves_half_sync = self.default_null_handler
-        elif not getattr(bottom_halves_half_sync, '__call__'):
+        elif not callable(bottom_halves_half_sync):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_half_sync', bottom_halves_half_sync)
@@ -371,14 +371,14 @@ class SpawnNamespacesConfig(object):
         if bottom_halves_after_sync is None:
             self.bottom_halves_after_sync = (
                 self.default_bottom_halves_after_sync)
-        elif not getattr(bottom_halves_after_sync, '__call__'):
+        elif not callable(bottom_halves_after_sync):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_after_sync', bottom_halves_after_sync)
 
         if bottom_halves_main is None:
             self.bottom_halves_main = (self.default_bottom_halves_main)
-        elif not getattr(bottom_halves_main, '__call__'):
+        elif not callable(bottom_halves_main):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_main', bottom_halves_main)
@@ -386,14 +386,14 @@ class SpawnNamespacesConfig(object):
         if bottom_halves_before_exit is None:
             self.bottom_halves_before_exit = (
                 self.default_bottom_halves_before_exit)
-        elif not getattr(bottom_halves_before_exit, '__call__'):
+        elif not callable(bottom_halves_before_exit):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_before_exit', bottom_halves_before_exit)
 
         if top_halves_entry_point is None:
             self.top_halves_entry_point = self.default_top_halves_entry_point
-        elif not getattr(top_halves_entry_point, '__call__'):
+        elif not callable(top_halves_entry_point):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'top_halves_entry_point', top_halves_entry_point)
@@ -401,7 +401,7 @@ class SpawnNamespacesConfig(object):
         if bottom_halves_entry_point is None:
             self.bottom_halves_entry_point = (
                 self.default_bottom_halves_entry_point)
-        elif not getattr(bottom_halves_entry_point, '__call__'):
+        elif not callable(bottom_halves_entry_point):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_entry_point',
@@ -409,10 +409,14 @@ class SpawnNamespacesConfig(object):
 
         if entry_point is None:
             self.entry_point = self.default_entry_point
-        elif not getattr(entry_point, '__call__'):
+        elif not callable(entry_point):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'entry_point', entry_point)
+
+    def __getattr__(self, name):
+        if name.startswith('default_'):
+            return self.default_null_handler
 
     def default_entry_point(self, *args, **kwargs):
         self.parse_conf(*args, **kwargs)
@@ -724,7 +728,7 @@ class SpawnNamespacesConfig(object):
                 self.default_bottom_halves_before_exit(
                     my_init.KILL_ALL_PROCESSES_TIMEOUT)
         else:
-            if hasattr(self.func, '__call__'):
+            if callable(self.func):
                 self.func(*args, **kwargs)
             else:
                 raise NamespaceSettingError()

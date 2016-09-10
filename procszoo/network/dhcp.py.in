@@ -1,18 +1,21 @@
 import os
 from subprocess import check_call, CalledProcessError
-__all__ = ['dhcp_if']
+__all__ = ['dhcp_if', 'DHCPFailed']
 
 _dhclient = '@DHCLIENT@'
 
+
+class DHCPFailed(Exception):
+    pass
 
 devnull = "/dev/null"
 if hasattr(os, "devnull"):
     devnull = os.devnull
 devnull_fd = os.open(devnull, os.O_RDWR)
 
-
 def dhcp_if(ifname, ipv4=True, ipv6=None, port=68,
-                timeout=None, leases=None):
+                timeout=None, leases=None,
+                pid=None):
     _cmd = [_dhclient]
     if ipv4 and ipv6:
         raise RuntimeError('cannot use both "ipv4" and "ipv6" options')
@@ -31,9 +34,12 @@ def dhcp_if(ifname, ipv4=True, ipv6=None, port=68,
     if leases:
         _cmd.append('-lf')
         _cmd.append(leases)
+    if pid:
+        _cmd.append('-pf')
+        _cmd.append(pid)
 
     _cmd.append(ifname)
     try:
         check_call(_cmd, stdout=devnull_fd, stderr=devnull_fd)
     except CalledProcessError:
-        raise RuntimeError('failed to dhcp')
+        raise DHCPFailed('failed to dhcp')

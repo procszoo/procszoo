@@ -2,7 +2,6 @@ import os
 import sys
 import re
 import tempfile
-import atexit
 from argparse import ArgumentParser, REMAINDER
 import traceback
 from procszoo.c_functions import *
@@ -191,11 +190,16 @@ def main():
 class SpawnNSAndNetwork(SpawnNamespacesConfig):
     def __init__(self, **kwargs):
         super(SpawnNSAndNetwork, self).__init__(**kwargs)
-        self._if_prefix = 'nth'
         self.tmpdir = tempfile.gettempdir()
+        self._if_prefix = 'nth'
+        self._leases_dir = '/var/run'
+        self._dhclient_pid_dir = self._leases_dir
+        self._resolv_conf_dir = self.tmpdir
+
         self.bottom_halves_before_fork = self._bottom_halves_before_fork
         self.top_halves_before_sync = self._top_halves_before_sync
         self.top_halves_half_sync = self._top_halves_half_sync
+        self.top_halves_before_exit = self._cleaner
         self.bottom_halves_after_sync = self._bottom_halves_after_sync
 
     def _if_name(self, pid=None, ifname=None):
@@ -236,22 +240,26 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
         self.default_top_halves_before_sync()
 
     def _cleaner(self):
-        for p in self._leases, self.resolv_conf:
-            os.unlink(p)
+        for p in self._leases, self.resolv_conf, self._dhclient_pid_file:
+            if os.path.exists(p):
+                os.unlink(p)
         del_netns_by_name(self.netns)
+        self.default_top_halves_before_exit()
 
     def _top_halves_half_sync(self):
         if self._netns_created:
             ifname = self._if_name(pid=self.top_halves_child_pid)
             create_macvtap(ifname=ifname)
             self._ifname = {'name': ifname, 'type': 'macvtap'}
-            self._leases = '/var/run/dhclient-%s.leases' % ifname
+            self._leases = '%s/dhclient-%s.leases' % (self._leases_dir, ifname)
+            self._dhclient_pid_file = '%s/dhclient-%s.pid' % (
+                self._dhclient_pid_dir, ifname)
         if self._netns_created:
-            self.resolv_conf = '%s/.%s' % (self.tmpdir, ifname)
+            self.resolv_conf = '%s/.%s' % (self._resolv_conf_dir, ifname)
             self.netns = 'net%d' % self.bottom_halves_child_pid
-            add_ifname_to_ns_by_pid(self._ifname['name'], self.bottom_halves_child_pid)
+            add_ifname_to_ns_by_pid(self._ifname['name'],
+                                        self.bottom_halves_child_pid)
 
-        atexit.register(self._cleaner)
         self.default_top_halves_half_sync()
 
     def _bottom_halves_after_sync(self):
@@ -259,11 +267,18 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
         ifname = self._ifname['name']
         if self._netns_created:
             up_if_by_name(ifname)
-            self._leases = '/var/run/dhclient-%s.leases' % ifname
-            self.resolv_conf = '%s/.%s' % (self.tmpdir, ifname)
+            self._leases = '%s/dhclient-%s.leases' % (self._leases_dir, ifname)
+            self._dhclient_pid_file = '%s/dhclient-%s.pid' % (
+                self._dhclient_pid_dir, ifname)
+            self.resolv_conf = '%s/.%s' % (self._resolv_conf_dir, ifname)
 
             if self._dhcp_if:
-                dhcp_if(ifname, leases=self._leases)
+                try:
+                    dhcp_if(ifname, leases=self._leases,
+                                pid=self._dhclient_pid_file)
+                except DHCPFailed as e:
+                    printf(e)
+                    raise SystemExit
                 nameservers = None
                 if os.path.exists(self._leases):
                     regex = re.compile('^ +option domain-name-servers ')
