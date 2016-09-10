@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import tempfile
+import random
 from argparse import ArgumentParser, REMAINDER
 import traceback
 from procszoo.c_functions import *
@@ -77,6 +78,10 @@ def get_options():
     parser.add_argument("-l", "--list", action="store_true",
                           dest="show_ns_status", default=False,
                           help="list namespaces status")
+    parser.add_argument("--dhcp", action="store_true", dest="dhcp",
+                            default=True, help='to dhcp network interface')
+    parser.add_argument("--no-dhcp", action="store_false", dest="dhcp",
+                            help='not to dhcp network interface')
     parser.add_argument(
         "--hostname", action="store", type=str, dest="hostname",
         metavar='hostname',
@@ -107,6 +112,7 @@ def get_extra(args):
         extra['trigger_key'] = 'richard+network'
         extra['data'] = {}
         data = extra['data']
+        data['dhcp'] = args.dhcp
         data['network'] = args.network
         if args.nameservers:
             data['nameservers'] = args.nameservers
@@ -142,8 +148,6 @@ def show_available_c_functions_and_quit():
 def main():
     check_namespaces_available_status()
     args = get_options()
-    if args.network is not None and not args.network:
-        args.network = 'macvtap'
 
     if args.show_ns_status:
         show_namespaces_then_quit()
@@ -190,87 +194,147 @@ def main():
 class SpawnNSAndNetwork(SpawnNamespacesConfig):
     def __init__(self, **kwargs):
         super(SpawnNSAndNetwork, self).__init__(**kwargs)
-        self.tmpdir = tempfile.gettempdir()
-        self._if_prefix = 'nth'
-        self._leases_dir = '/var/run'
-        self._dhclient_pid_dir = self._leases_dir
-        self._resolv_conf_dir = self.tmpdir
+        if 'net' in self.namespaces:
+            self._netns_created = True
+        else:
+            self._netns_created = False
 
-        self.bottom_halves_before_fork = self._bottom_halves_before_fork
-        self.top_halves_before_sync = self._top_halves_before_sync
+        if 'data' in self.extra:
+            self.data = self.extra['data']
+        else:
+            self.data = None
+
+        if 'dhcp' in self.data:
+            self.dhcp = self.data['dhcp']
+        else:
+            self.dhcp = None
+
+        if 'network' in self.data:
+            self.network = self.data['network']
+        else:
+            self.network = None
+
+        if 'nameservers' in self.data:
+            self.nameservers = self.data['nameservers']
+        else:
+            self.nameservers = None
+
+        if 'hostname' in self.data:
+            self.hostname = self.data['hostname']
+        else:
+            self.hostname = None
+
+        if 'bridge' in self.data:
+            self.bridge = self.data['bridge']
+        else:
+            self.bridge = None
+
+        if self.bridge and self.network == 'macvtap':
+            raise NamespaceSettingError('macvtap do not need a bridge')
+
+        if self.network and not self._netns_created:
+            raise NamespaceSettingError(
+                '%s need net namespace' % self.network)
+
+        if self.dhcp is None:
+            if  get_all_oifindexes_of_default_route():
+                self._dhcp_if = True
+            else:
+                self._dhcp_if = False
+        else:
+            self._dhcp_if = self.dhcp
+
+        self.tmpdir = tempfile.gettempdir()
+        if self._netns_created:
+            self.netns_fmt = 'richard_parker%d'
+
+            self._leases_dir = '/var/run'
+            self._dhclient_pid_dir = '/var/run'
+            self._resolv_conf_dir = self.tmpdir
+
+            self.ifnames = []
+            self.ifnames.append(self._if_name())
+            if self.network == 'veth':
+                self.ifnames.append(self._if_name())
+            self.ifname = self.ifnames[0]
+
+            if self.network == 'macvtap':
+                self.ifname_to_ns = self.ifname
+            elif self.network == 'veth':
+                self.ifname_to_ns = self.ifnames[1]
+
+            ifname = self.ifname
+            self._leases = '%s/dhclient-%s.leases' % (self._leases_dir, ifname)
+            self._dhclient_pid_file = '%s/dhclient-%s.pid' % (
+                self._dhclient_pid_dir, ifname)
+            self.resolv_conf = '%s/.%s' % (self._resolv_conf_dir, ifname)
+
         self.top_halves_half_sync = self._top_halves_half_sync
         self.top_halves_before_exit = self._cleaner
         self.bottom_halves_after_sync = self._bottom_halves_after_sync
 
-    def _if_name(self, pid=None, ifname=None):
+    def _if_name(self, ifname=None):
+        _max_tries = 9999
+        _max_if_count = 9999
         if ifname is not None:
             return ifname
-        if pid is None:
-            pid = os.getpid()
-        return '%s%d' % (self._if_prefix, pid)
+        _ifnames = get_all_ifnames()
+        for i in range(_max_tries):
+            n = random.randint(0, _max_if_count)
+            _if = '%s%d' % (self.data['network'], n)
+            if _if not in _ifnames:
+                return _if
+
+        raise SystemExit()
 
     def need_super_privilege(self):
         return os.geteuid() != 0
 
-    def _bottom_halves_before_fork(self):
-        if 'net' in self.namespaces:
-            self._netns_created = True
-        else:
-            self._netns_created = False
-        if  get_all_oifindexes_of_default_route():
-            self._dhcp_if = True
-        else:
-            self._dhcp_if = False
-
-        if self._netns_created:
-            ifname = self._if_name()
-            self._ifname = {'name': ifname, 'type': 'macvtap'}
-        self.default_bottom_halves_before_fork()
-
-    def _top_halves_before_sync(self):
-        if 'net' in self.namespaces:
-            self._netns_created = True
-        else:
-            self._netns_created = False
-        if  get_all_oifindexes_of_default_route():
-            self._dhcp_if = True
-        else:
-            self._dhcp_if = False
-
-        self.default_top_halves_before_sync()
-
     def _cleaner(self):
+        if not self._netns_created:
+            return
+
         for p in self._leases, self.resolv_conf, self._dhclient_pid_file:
             if os.path.exists(p):
                 os.unlink(p)
-        del_netns_by_name(self.netns)
+        if self.network == 'veth':
+            if self.ifname in get_all_ifnames():
+                down_if_by_name(self.ifname)
+                del_if_by_name(self.ifname)
+        if is_netns_existed(self.netns):
+            del_netns_by_name(self.netns)
         self.default_top_halves_before_exit()
 
     def _top_halves_half_sync(self):
         if self._netns_created:
-            ifname = self._if_name(pid=self.top_halves_child_pid)
-            create_macvtap(ifname=ifname)
-            self._ifname = {'name': ifname, 'type': 'macvtap'}
-            self._leases = '%s/dhclient-%s.leases' % (self._leases_dir, ifname)
-            self._dhclient_pid_file = '%s/dhclient-%s.pid' % (
-                self._dhclient_pid_dir, ifname)
-        if self._netns_created:
-            self.resolv_conf = '%s/.%s' % (self._resolv_conf_dir, ifname)
-            self.netns = 'net%d' % self.bottom_halves_child_pid
-            add_ifname_to_ns_by_pid(self._ifname['name'],
-                                        self.bottom_halves_child_pid)
+            ifname = self.ifname
+            if self.network == 'veth':
+                create_veth(ifname, self.ifnames[1])
+            elif self.network == 'macvtap':
+                create_macvtap(ifname=ifname)
+
+            if self.bridge:
+                if self.bridge not in get_all_ifnames():
+                    create_bridge(self.bridge)
+                add_ifname_to_bridge(ifname, self.bridge)
+
+                if self.bridge not in get_up_ifnames():
+                    up_if_by_name(self.bridge)
+                if ifname not in get_up_ifnames():
+                    up_if_by_name(ifname)
+
+            self.netns = self.netns_fmt % self.bottom_halves_child_pid
+            add_ifname_to_ns_by_pid(
+                ifname=self.ifname_to_ns, netns=self.netns,
+                pid=self.bottom_halves_child_pid)
 
         self.default_top_halves_half_sync()
 
     def _bottom_halves_after_sync(self):
         up_if_by_name('lo')
-        ifname = self._ifname['name']
         if self._netns_created:
+            ifname = self.ifname_to_ns
             up_if_by_name(ifname)
-            self._leases = '%s/dhclient-%s.leases' % (self._leases_dir, ifname)
-            self._dhclient_pid_file = '%s/dhclient-%s.pid' % (
-                self._dhclient_pid_dir, ifname)
-            self.resolv_conf = '%s/.%s' % (self._resolv_conf_dir, ifname)
 
             if self._dhcp_if:
                 try:
@@ -278,9 +342,12 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
                                 pid=self._dhclient_pid_file)
                 except DHCPFailed as e:
                     printf(e)
-                    raise SystemExit
-                nameservers = None
-                if os.path.exists(self._leases):
+                    raise SystemExit()
+                if self.nameservers:
+                    nameservers = self.nameservers
+                else:
+                    nameservers = None
+                if nameservers is None and os.path.exists(self._leases):
                     regex = re.compile('^ +option domain-name-servers ')
                     hdr = open(self._leases, 'r')
                     for line in hdr:
@@ -289,15 +356,18 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
                             nameservers = [l.rstrip(';') for l in pieces]
                             break
                     hdr.close()
+                self.nameservers = nameservers
 
-                if nameservers:
-                    path = self.resolv_conf
-                    hdr = open(path, 'w+')
-                    hdr.write('# richard_parker created and edited this file\n')
-                    for nameserver in nameservers:
-                        hdr.write('nameserver %s\n' % nameserver)
-                    hdr.close()
-                    mount(source=path, target='/etc/resolv.conf', mount_type='bind')
+            if self.nameservers:
+                path = self.resolv_conf
+                hdr = open(path, 'w+')
+                hdr.write('# richard_parker created and edited this file\n')
+                for nameserver in nameservers:
+                    hdr.write('nameserver %s\n' % nameserver)
+                hdr.close()
+                mount(source=path, target='/etc/resolv.conf', mount_type='bind')
+            if self.hostname:
+                sethostname(self.hostname)
 
         self.default_bottom_halves_after_sync()
 

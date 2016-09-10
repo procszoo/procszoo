@@ -26,7 +26,8 @@ __all__ = [
     'down_if_by_name', 'up_if_by_name',
     'down_if_by_index', 'up_if_by_index',
     'get_up_ifindexes', 'get_up_ifnames',
-    'DHCPFailed',
+    'create_veth', 'create_bridge', 'DHCPFailed',
+    'add_ifname_to_bridge', 'is_netns_existed',
     ]
 
 
@@ -90,7 +91,7 @@ def get_up_ifnames():
     ipr = IPRoute()
     idx_list = ipr.link_lookup(operstate='UP')
     if not idx_list: return []
-    links = ipr.get_links(idx_list)
+    links = ipr.get_links(*idx_list)
     name_list = [l.get_attr('IFLA_IFNAME') for l in links]
     ipr.close()
     return name_list
@@ -183,10 +184,27 @@ def get_all_oifnames_of_default_route():
     '''return list of all out interface index'''
     ipr = IPRoute()
     idx_list = [r.get_attr('RTA_OIF') for r in ipr.get_default_routes()]
-    links = ipr.get_links(idx_list)
+    links = ipr.get_links(*idx_list)
     name_list = [l.get_attr('IFLA_IFNAME') for l in links]
     ipr.close()
     return name_list
+
+def create_bridge(bridge=None):
+    if bridge is None:
+        bridge = 'br0'
+    ipr = IPRoute()
+    ipr.link('add', ifname=bridge, kind='bridge')
+    ipr.close()
+
+
+def create_veth(ifname=None, peer=None):
+    if ifname is None:
+        ifname = 'veth0'
+    if peer is None:
+        peer = 'veth1'
+    ipr = IPRoute()
+    ipr.link('add', ifname=ifname, kind='veth', peer=peer)
+    ipr.close()
 
 
 def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
@@ -229,11 +247,22 @@ def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
         ipr.close()
 
 
+def add_ifname_to_bridge(ifname, bridge):
+    ipr = IPRoute()
+    ipr.link('set', index=ipr.link_lookup(ifname=ifname)[0],
+                 master=ipr.link_lookup(ifname=bridge)[0])
+    ipr.close()
+
+
+def is_netns_existed(ns):
+    return ns in netns.listnetns()
+
+
 def add_ifindex_to_ns(ifindex, ns):
     ipr = IPRoute()
     try:
         ipr.link('set', index=ifindex, net_ns_fd=ns)
-    except Exception:
+    except Exception as e:
         printf(e)
         raise RuntimeError
     finally:
@@ -245,13 +274,13 @@ def add_ifname_to_ns(ifname, ns):
     ifindex = ipr.link_lookup(ifname=ifname)[0]
     try:
         ipr.link('set', index=ifindex, net_ns_fd=ns)
-    except Exception:
+    except Exception as e:
         printf(e)
         raise RuntimeError
     finally:
         ipr.close()
 
-def add_ifname_to_ns_by_pid(ifname, pid=None, path=None):
+def add_ifname_to_ns_by_pid(ifname, pid=None, path=None, netns=None):
     if pid is None:
         pid = os.getpid()
     try:
@@ -259,7 +288,8 @@ def add_ifname_to_ns_by_pid(ifname, pid=None, path=None):
     except ValueError:
         raise NamespaceSettingError()
     netns_dir = '/var/run/netns'
-    netns = 'net%d' % pid
+    if netns is None:
+        netns = 'net%d' % pid
     target = '%s/%s' % (netns_dir, netns)
 
     if not os.path.exists(netns_dir):
