@@ -168,6 +168,14 @@ if PYROUTE2_IW_PACKAGE_AVAILABLE:
                 ret[n] = True
 
         return ret
+
+
+    def add_ifname_to_bridge(ifname, bridge):
+        ipr = IPRoute()
+        ipr.link('set', index=ipr.link_lookup(ifname=ifname)[0],
+                    master=ipr.link_lookup(ifname=bridge)[0])
+        ipr.close()
+
 else:
     from procszoo.network.wrappers import *
 
@@ -224,7 +232,7 @@ def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
         ifs = [idx for idx in get_all_oifindexes_of_default_route()
                    if not is_ifindex_wireless(idx)]
         if not ifs:
-            raise NamespaceSettingError(
+            raise SystemExit(
                 'no default route for us to determine interface')
         else:
             index = ifs[0]
@@ -245,13 +253,6 @@ def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
                             'perhaps you need a latest pyroute2 module'))
     finally:
         ipr.close()
-
-
-def add_ifname_to_bridge(ifname, bridge):
-    ipr = IPRoute()
-    ipr.link('set', index=ipr.link_lookup(ifname=ifname)[0],
-                 master=ipr.link_lookup(ifname=bridge)[0])
-    ipr.close()
 
 
 def is_netns_existed(ns):
@@ -347,4 +348,3 @@ def remove_netns(ns_name):
     netns = NetNS(ns_name)
     netns.remove()
     netns.close()
-

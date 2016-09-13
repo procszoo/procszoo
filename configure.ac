@@ -53,8 +53,14 @@ if test "${DHCLIENT:-}"x = "x"; then
 AC_MSG_FAILURE(['dhclient' command unavailable])
 fi
 
+AC_PATH_PROG(BRCTL, brctl)
+if test "${BRCTL:-}"x = "x"; then
+AC_MSG_FAILURE(['brctl' command unavailable])
+fi
+
 AC_SUBST(IW)
 AC_SUBST(DHCLIENT)
+AC_SUBST(BRCTL)
 AC_CONFIG_FILES(procszoo/c_functions/macros.py procszoo/version.py)
 AC_CONFIG_FILES(procszoo/network/dhcp.py procszoo/network/wrappers.py)
 AC_OUTPUT
