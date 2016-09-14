@@ -21,11 +21,10 @@ import struct
 
 from procszoo.ipc.common import AbstractMessageHeader, AbstractMessage
 
-
 class ProcslinkMessageHeader(AbstractMessageHeader, object):
     """
     Procslink message header
-        struct connectorhdr {
+        struct procslinkhdr {
             __u16 version; /* version number, default: 1 */
             __u16 flag; /* reserved */
             __u32 length; /* length including header */
@@ -38,6 +37,10 @@ class ProcslinkMessageHeader(AbstractMessageHeader, object):
     """
     FORMAT = ">HHIHHIQ"
     SIZE = 24
+
+    PAYLOAD_TYPE_UNKNOWN = 0
+    PAYLOAD_TYPE_JSONRPC2_REQUEST = 1
+    PAYLOAD_TYPE_JSONRPC2_RESPONSE = 2
 
     def __init__(self, version=1, flag=0, length=-1, payload_type=0, reserved=0, seq=0, timestamp=0):
         # type: (int, int, int ,int, int, int, int)

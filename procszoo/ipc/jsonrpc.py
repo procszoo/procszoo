@@ -20,10 +20,14 @@
 from __future__ import unicode_literals, absolute_import
 
 import json
+import logging
 
 from future.builtins import str, int
+from future.utils import text_to_native_str
 
 from procszoo.ipc.common import AbstractMessage
+
+LOGGER = logging.getLogger(__name__)
 
 
 class AbstractJSONRPCObject(AbstractMessage, object):
@@ -47,14 +51,30 @@ class AbstractJSONRPCObject(AbstractMessage, object):
         self.id = id
         """An identifier established by the Client that MUST contain a String, Number, or NULL value if included."""
 
-    def to_json(self):
-        # type: () -> str
+    @classmethod
+    def from_dict(cls, d):
+        # type: (dict) -> AbstractJSONRPCObject
+        raise NotImplementedError()
+
+    def to_dict(self):
+        # type: (dict) -> AbstractJSONRPCObject
         raise NotImplementedError()
 
     @classmethod
-    def from_json(cls, json):
+    def from_json(cls, jsonstr):
         # type: (str) -> AbstractJSONRPCObject
-        raise NotImplementedError()
+        if not isinstance(jsonstr, str):
+            raise TypeError("jsonstr must be str")
+        try:
+            json_dict = json.loads(jsonstr)  # type: dict
+        except json.JSONDecodeError as e:
+            raise JSONRPCParseError(internal_exception=e)
+        return cls.from_dict(json_dict)
+
+    def to_json(self):
+        # type: () -> str
+        return json.dumps(self.to_dict())
+
 
     def to_bytes(self):
         # type: () -> bytes
@@ -63,6 +83,8 @@ class AbstractJSONRPCObject(AbstractMessage, object):
     @classmethod
     def from_bytes(cls, data):
         # type: (bytes) -> AbstractJSONRPCObject
+        if not isinstance(data, bytes):
+            raise TypeError("data must be bytes")
         return cls.from_json(data.decode(AbstractJSONRPCObject.ENCODING))
 
 
@@ -92,26 +114,26 @@ class JSONRPCRequest(AbstractJSONRPCObject, object):
         AbstractJSONRPCObject.__init__(self, id)
         self.method = method
         self.params = params
-        self.is_notification = is_notification
+        self._is_notification = is_notification
+
+    @property
+    def is_notification(self):
+        return self._is_notification
 
     def __repr__(self):
         return "<{}.{}:{}>".format(__name__, "JSONRPCRequestObject", self.__dict__)
 
-    def to_json(self):
+    def to_dict(self):
         json_dict = {"jsonrpc": self.jsonrpc, "method": self.method}
-        if not self.is_notification:
+        if not self._is_notification:
             json_dict["id"] = self.id
         if self.params:
             json_dict["params"] = self.params
-        return json.dumps(json_dict)
+        return json_dict
 
     @classmethod
-    def from_json(cls, s):
-        # type: (str) -> JSONRPCRequest
-        try:
-            json_dict = json.loads(s)  # type: dict
-        except json.JSONDecodeError as e:
-            raise JSONRPCParseError(internal_exception=e)
+    def from_dict(cls, json_dict):
+        # type: (dict) -> JSONRPCRequest
         if json_dict.get("jsonrpc") != "2.0":
             raise JSONRPCInvalidRequestError()
         is_notification = "id" not in json_dict
@@ -151,25 +173,23 @@ class JSONRPCResponse(AbstractJSONRPCObject, object):
         self.result = result
         self.error = error
 
-    def to_json(self):
+    def to_dict(self):
         json_dict = {"jsonrpc": self.jsonrpc, "id": self.id}
         if self.error:
-            json_dict["error"] = self.error.to_json()
+            json_dict["error"] = self.error.to_dict()
         else:
             json_dict["result"] = self.result
-        return json.dumps(json_dict)
+        return json_dict
 
     @classmethod
-    def from_json(cls, s):
-        # type: (str) -> JSONRPCResponse
-        try:
-            json_dict = json.loads(s)  # type: dict
-        except json.JSONDecodeError as e:
-            raise JSONRPCParseError(internal_exception=e)
+    def from_dict(cls, json_dict):
+        # type: (dict) -> JSONRPCResponse
         if json_dict.get("jsonrpc") != "2.0":
             raise JSONRPCInvalidRequestError("jsonrpc field must be '2.0'")
         try:
-            ret = JSONRPCResponse(json_dict["id"], json_dict.get("result"), json_dict.get("error"))
+            error_dict = json_dict.get("error")
+            error = JSONRPCError.from_dict(error_dict) if error_dict else None
+            ret = JSONRPCResponse(json_dict["id"], json_dict.get("result"), error)
         except TypeError as e:
             raise JSONRPCInvalidRequestError(internal_exception=e)
         except ValueError as e:
@@ -215,23 +235,22 @@ class JSONRPCError(Exception, AbstractJSONRPCObject):
 
         self.internal_exception = internal_exception
 
-    def to_json(self):
+    def to_dict(self):
         json_dict = self.__dict__.copy()
         if self.data is None:
             del json_dict["data"]
-        return json.dumps(json_dict)
+        if self.internal_exception is None:
+            del json_dict["internal_exception"]
+        return json_dict
 
     @classmethod
-    def from_json(cls, s):
-        # type: (str) -> JSONRPCError
+    def from_dict(cls, json_dict):
+        # type: (dict) -> JSONRPCError
         try:
-            json_dict = json.loads(s)
-        except json.JSONDecodeError as e:
-            raise JSONRPCParseError(internal_exception=e)
-        try:
-            ret = JSONRPCResponse(json_dict.code, json_dict.message, json_dict.data)
+            ret = JSONRPCError(json_dict["code"], json_dict["message"], json_dict.get("data"))
         except TypeError as e:
             raise JSONRPCInvalidRequestError(internal_exception=e)
+        return ret
 
 
 class JSONRPCParseError(JSONRPCError):
@@ -255,8 +274,8 @@ class JSONRPCInvalidParamsError(JSONRPCError):
 
 
 class JSONRPCInternalError(JSONRPCError):
-    def __init__(self, message="Internal error"):
-        JSONRPCError.__init__(self, -32603, message)
+    def __init__(self, message="Internal error", data=None, internal_exception=None):
+        JSONRPCError.__init__(self, -32603, message, data, internal_exception)
 
 
 class JSONRPCServerError(JSONRPCError):

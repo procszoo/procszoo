@@ -84,6 +84,38 @@ class NetlinkTestCase(unittest.TestCase, object):
         msg2 = NetlinkMessage.from_bytes(msg1.to_bytes())
         self.assertEqual(msg1.to_bytes(), msg2.to_bytes())
 
+import logging
+import sys
+import os
+from procszoo.ipc import RPCPeer
+logging.basicConfig(level=logging.DEBUG)
+
+def hello(name):
+    print("Hello %s!" % name)
+    return "Hello %s!" % name
+
+
+class RPCTestCase(unittest.TestCase):
+    def setUp(self):
+        self.server = RPCPeer()
+        pid = os.fork()
+        if pid == 0:
+            self.server.register_function(hello)
+            self.server.run_server_forever()
+        self.server_pid = pid
+        #os.system("sleep 1")
+
+    def test_rpc_call(self):
+        client = RPCPeer()
+        client.talk_to(self.server.nl_pid).hello("IPC")
+
+    def tearDown(self):
+        os.kill(self.server_pid, 9)
+        os.waitpid(self.server_pid, 0)
 
 if __name__ == '__main__':
     unittest.main()
+
+
+
+
