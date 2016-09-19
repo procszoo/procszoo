@@ -19,9 +19,13 @@ import json
 
 from procszoo.utils import *
 from procszoo.namespaces import *
-from procszoo.version import PROCSZOO_VERSION
-from procszoo.c_functions.macros import *
-from procszoo.c_functions.atfork import atfork as c_atfork
+try:
+    from procszoo.version import PROCSZOO_VERSION
+    from procszoo.c_functions.macros import *
+    from procszoo.c_functions.atfork import atfork as c_atfork
+except ImportError:
+    printf('seems you do not install/build procszoo completely')
+    raise SystemExit()
 from procszoo.scripts import my_init
 
 if os.uname()[0] != "Linux":
@@ -234,6 +238,14 @@ def _write_to_uid_and_gid_map(maproot, users_map, groups_map, pid):
         except IOError:
             raise NamespaceRequireSuperuserPrivilege()
 
+def _review_sync_signal(r, size=1):
+    _signal = os.read(r, size)
+    if len(_signal) == 0 and is_string_or_unicode(_signal):
+        raise SystemExit
+    elif len(_signal) <= size:
+        return _signal
+    else:
+        raise RuntimeError('sync failed')
 
 class SpawnNamespacesConfig(object):
     def __init__(self, namespaces=None, maproot=True, mountproc=True,
@@ -444,10 +456,10 @@ class SpawnNamespacesConfig(object):
         os.close(w1)
         os.close(r2)
 
-        child_pid = os.read(r1, 64)
+        _info_by_signal = _review_sync_signal(r1, 64)
         os.close(r1)
         try:
-            child_pid = int(child_pid)
+            child_pid = int(_info_by_signal)
         except ValueError:
             raise RuntimeError("failed to get the child pid")
 
@@ -498,7 +510,8 @@ class SpawnNamespacesConfig(object):
 
             self.bottom_halves_half_sync(*args, **kwargs)
 
-            if ord(os.read(r4, 1)) != _ACKCHAR:
+            sync_signal = _review_sync_signal(r4)
+            if ord(sync_signal) != _ACKCHAR:
                 raise RuntimeError('sync failed')
             os.close(r4)
 
@@ -530,14 +543,16 @@ class SpawnNamespacesConfig(object):
             os.close(w3)
             os.close(r4)
 
-            if ord(os.read(r3, 1)) != _ACKCHAR:
+            sync_signal = _review_sync_signal(r3)
+            if ord(sync_signal) != _ACKCHAR:
                 raise RuntimeError('sync failed')
             os.close(r3)
 
             os.write(w1, to_bytes("%d" % pid))
             os.close(w1)
 
-            if ord(os.read(r2, 1)) != _ACKCHAR:
+            sync_signal = _review_sync_signal(r2)
+            if ord(sync_signal) != _ACKCHAR:
                 raise RuntimeError('sync failed')
             os.close(r2)
 

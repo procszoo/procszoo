@@ -20,7 +20,7 @@ def get_options():
         'A simple cli to create new namespaces env',
         'default it will enable each available namespaces.')
     parser = ArgumentParser(
-        usage="%s [options] [nscmd]" % prog,
+        usage="%s [options] [nscmd] [nscmd_options]" % prog,
         description=description,
         epilog="%s is part of procszoo: %s"  % (prog, project_url))
 
@@ -53,12 +53,15 @@ def get_options():
     parser.add_argument("--init-program", action="store", dest="init_prog",
                             type=str, metavar='your_init_program',
                             help="replace the my_init program by yours")
+    help_str = """
+    control the setgroups syscall in user namespaces,
+    when setting to 'allow' will enable --no-maproot option and avoid
+    --user-map and --group-map options
+    """
     parser.add_argument(
         "-s", "--setgroups", action="store", type=str, dest="setgroups",
         choices=['allow', 'deny'],
-        help="""control the setgroups syscall in user namespaces,
-        when setting to 'allow' will enable --no-maproot option and avoid
-        --user-map and --group-map options""")
+        help=help_str)
     parser.add_argument("--mountproc", action="store_true", dest="mountproc",
                         help="remount procfs mountpoin, implies -n mount",
                       default=True)
@@ -86,6 +89,15 @@ def get_options():
         "--hostname", action="store", type=str, dest="hostname",
         metavar='hostname',
         help="hostname in the new net namespaces")
+    help_str = '''
+    if network is macvtap, will create macvtap on this interface;
+    if network is veth, will add the interface as physical device
+    to the bridge
+    '''
+    parser.add_argument(
+        "--interface", action="store", type=str, dest="interface",
+        metavar='interface',
+        help=help_str)
     parser.add_argument(
         "--nameserver", action="append", type=str, dest="nameservers",
         metavar='nameserver', help="nameserver in the new net namespaces")
@@ -113,13 +125,11 @@ def get_extra(args):
         extra['data'] = {}
         data = extra['data']
         data['dhcp'] = args.dhcp
+        data['interface'] = args.interface
         data['network'] = args.network
-        if args.nameservers:
-            data['nameservers'] = args.nameservers
-        if args.hostname:
-            data['hostname'] = args.hostname
-        if args.bridge:
-            data['bridge'] = args.bridge
+        data['nameservers'] = args.nameservers
+        data['hostname'] = args.hostname
+        data['bridge'] = args.bridge
 
     return extra
 
@@ -182,6 +192,9 @@ def main():
     except NamespaceSettingError as e:
         printf(e)
         _exit_code = 1
+    except RuntimeError as e:
+        printf(e)
+        _exit_code = 1
     except SystemExit:
         _exit_code = 0
     except Exception as e:
@@ -195,57 +208,34 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
     def __init__(self, **kwargs):
         super(SpawnNSAndNetwork, self).__init__(**kwargs)
         if 'net' in self.namespaces:
-            self._netns_created = True
+            self.netns_enable = True
         else:
-            self._netns_created = False
+            self.netns_enable = False
 
-        if 'data' in self.extra:
-            self.data = self.extra['data']
-        else:
-            self.data = None
+        self.data = self.extra['data']
+        self.dhcp = self.data['dhcp']
+        self.interface = self.data['interface']
+        self.network = self.data['network']
+        self.nameservers = self.data['nameservers']
+        self.hostname = self.data['hostname']
 
-        if 'dhcp' in self.data:
-            self.dhcp = self.data['dhcp']
-        else:
-            self.dhcp = None
-
-        if 'network' in self.data:
-            self.network = self.data['network']
-        else:
-            self.network = None
-
-        if 'nameservers' in self.data:
-            self.nameservers = self.data['nameservers']
-        else:
-            self.nameservers = None
-
-        if 'hostname' in self.data:
-            self.hostname = self.data['hostname']
-        else:
-            self.hostname = None
-
-        if 'bridge' in self.data:
-            self.bridge = self.data['bridge']
-        else:
-            self.bridge = None
+        self.bridge = self.data['bridge']
 
         if self.bridge and self.network == 'macvtap':
             raise NamespaceSettingError('macvtap do not need a bridge')
 
-        if self.network and not self._netns_created:
+        if self.network and not self.netns_enable:
             raise NamespaceSettingError(
                 '%s need net namespace' % self.network)
 
         if self.dhcp is None:
-            if  get_all_oifindexes_of_default_route():
-                self._dhcp_if = True
+            if  get_all_oifindexes_of_default_route(wifi=False):
+                self.dhcp = True
             else:
-                self._dhcp_if = False
-        else:
-            self._dhcp_if = self.dhcp
+                self.dhcp = False
 
         self.tmpdir = tempfile.gettempdir()
-        if self._netns_created:
+        if self.netns_enable:
             self.netns_fmt = 'richard_parker%d'
 
             self._leases_dir = '/var/run'
@@ -268,7 +258,11 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
             self._dhclient_pid_file = '%s/dhclient-%s.pid' % (
                 self._dhclient_pid_dir, ifname)
             self.resolv_conf = '%s/.%s' % (self._resolv_conf_dir, ifname)
+            if self.bridge:
+                if self.bridge not in get_all_ifnames() and not self.interface:
+                    self.dhcp = False
 
+        self.top_halves_before_fork = self._top_halves_before_fork
         self.top_halves_half_sync = self._top_halves_half_sync
         self.top_halves_before_exit = self._cleaner
         self.bottom_halves_after_sync = self._bottom_halves_after_sync
@@ -290,37 +284,85 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
     def need_super_privilege(self):
         return os.geteuid() != 0
 
-    def _cleaner(self):
-        if not self._netns_created:
+    def _top_halves_before_fork(self, *args, **kwargs):
+        if not self.interface:
+            if not get_all_oifnames_of_default_route(wifi=False):
+                raise NamespaceSettingError(
+                    'cannot determine a interface to create %s' %
+                    self.network)
+        self.default_top_halves_before_fork(*args, **kwargs)
+
+    def _cleaner(self, *args, **kwargs):
+        if not self.netns_enable:
             return
 
         for p in self._leases, self.resolv_conf, self._dhclient_pid_file:
             if os.path.exists(p):
                 os.unlink(p)
-        if self.network == 'veth':
-            if self.ifname in get_all_ifnames():
-                down_if_by_name(self.ifname)
-                del_if_by_name(self.ifname)
+
+        if self.need_up_ifnames:
+            for _if in self.need_up_ifnames:
+                if _if in get_all_ifnames():
+                    down_if_by_name(_if)
+
+        if self.manual_created_ifnames:
+            for _if in self.manual_created_ifnames:
+                if _if in get_all_ifnames():
+                    del_if_by_name(_if)
+
         if is_netns_existed(self.netns):
             del_netns_by_name(self.netns)
-        self.default_top_halves_before_exit()
+        self.default_top_halves_before_exit(*args, **kwargs)
 
-    def _top_halves_half_sync(self):
-        if self._netns_created:
+    def _top_halves_half_sync(self, *args, **kwargs):
+        self.manual_created_ifnames = []
+        self.need_up_ifnames = []
+        if self.netns_enable:
             ifname = self.ifname
-            if self.network == 'veth':
+            if self.network == 'macvtap':
+                if self.interface:
+                    if self.interface not in get_up_ifnames():
+                        self.need_up_ifnames.append(self.interface)
+                        up_if_by_name(self.interface)
+                    if self.dhcp:
+                        dhcp_if(self.interface)
+                try:
+                    create_macvtap(ifname=ifname, link=self.interface)
+                except SystemExit:
+                    raise NamespaceSettingError(
+                        'cannot determine a interface for creating %s devices'
+                        % self.network)
+
+            elif self.network == 'veth':
                 create_veth(ifname, self.ifnames[1])
-            elif self.network == 'macvtap':
-                create_macvtap(ifname=ifname)
+                self.manual_created_ifnames.append(ifname)
+                self.need_up_ifnames.append(ifname)
 
-            if self.bridge:
-                if self.bridge not in get_all_ifnames():
-                    create_bridge(self.bridge)
-                add_ifname_to_bridge(ifname, self.bridge)
+                if self.bridge:
+                    if self.bridge not in get_all_ifnames():
+                        create_bridge(self.bridge)
+                        self.manual_created_ifnames.append(self.bridge)
+                        if not self.interface:
+                            self.dhcp = False
 
-                if self.bridge not in get_up_ifnames():
-                    up_if_by_name(self.bridge)
-                if ifname not in get_up_ifnames():
+                    if self.bridge not in get_up_ifnames():
+                        self.need_up_ifnames.append(self.bridge)
+                    if self.interface:
+                        if self.interface in get_up_ifnames():
+                            down_if_by_name(self.interface)
+                        self.need_up_ifnames.append(self.interface)
+                        add_ifname_to_bridge(self.interface, self.bridge)
+
+                    if ifname in get_up_ifnames():
+                        down_if_by_name(ifname)
+                        self.need_up_ifnames.append(ifname)
+                    add_ifname_to_bridge(ifname, self.bridge)
+
+                    for _if in self.need_up_ifnames:
+                        up_if_by_name(_if)
+                    if self.bridge in self.need_up_ifnames and self.dhcp:
+                        dhcp_if(self.bridge)
+                else:
                     up_if_by_name(ifname)
 
             self.netns = self.netns_fmt % self.bottom_halves_child_pid
@@ -328,15 +370,17 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
                 ifname=self.ifname_to_ns, netns=self.netns,
                 pid=self.bottom_halves_child_pid)
 
-        self.default_top_halves_half_sync()
+        self.default_top_halves_half_sync(*args, **kwargs)
 
-    def _bottom_halves_after_sync(self):
+    def _bottom_halves_after_sync(self, *args, **kwargs):
         up_if_by_name('lo')
-        if self._netns_created:
+        if self.netns_enable:
             ifname = self.ifname_to_ns
+            if ifname not in get_all_ifnames():
+                raise RuntimeError('%s interfaces not existed' % ifname)
             up_if_by_name(ifname)
 
-            if self._dhcp_if:
+            if self.dhcp:
                 try:
                     dhcp_if(ifname, leases=self._leases,
                                 pid=self._dhclient_pid_file)
@@ -369,7 +413,7 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
             if self.hostname:
                 sethostname(self.hostname)
 
-        self.default_bottom_halves_after_sync()
+        self.default_bottom_halves_after_sync(*args, **kwargs)
 
 
 if __name__ == "__main__":

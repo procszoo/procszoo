@@ -87,6 +87,7 @@ def get_up_ifindexes():
     ipr.close()
     return ret
 
+
 def get_up_ifnames():
     ipr = IPRoute()
     idx_list = ipr.link_lookup(operstate='UP')
@@ -180,18 +181,28 @@ else:
     from procszoo.network.wrappers import *
 
 
-def get_all_oifindexes_of_default_route():
+def get_all_oifindexes_of_default_route(wifi=None):
     '''return list of all out interface names'''
     ipr = IPRoute()
-    idx_list = [r.get_attr('RTA_OIF') for r in ipr.get_default_routes()]
+    _idx_list = [r.get_attr('RTA_OIF') for r in ipr.get_default_routes()]
+    if wifi:
+        idx_list = _idx_list
+    else:
+        idx_list = [idx for idx in _idx_list if not is_ifindex_wireless(idx)]
     ipr.close()
     return idx_list
 
 
-def get_all_oifnames_of_default_route():
+def get_all_oifnames_of_default_route(wifi=None):
     '''return list of all out interface index'''
     ipr = IPRoute()
-    idx_list = [r.get_attr('RTA_OIF') for r in ipr.get_default_routes()]
+    _idx_list = [r.get_attr('RTA_OIF') for r in ipr.get_default_routes()]
+    if wifi:
+        idx_list = _idx_list
+    else:
+        idx_list = [idx for idx in _idx_list if not is_ifindex_wireless(idx)]
+    if not idx_list:
+        return []
     links = ipr.get_links(*idx_list)
     name_list = [l.get_attr('IFLA_IFNAME') for l in links]
     ipr.close()
@@ -241,19 +252,19 @@ def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
             index=int(link)
         except ValueError:
             index = ipr.link_lookup(ifname=link)[0]
-        finally:
-            ipr.close()
-
+        except Exception:
+            raise NamespaceSettingError(
+                'failed to get the index of %s' % self.interface)
     try:
         ipr.link('add', ifname=ifname, kind='macvtap',
                      link=index, macvtap_mode=mode)
-    except Exception:
+    except Exception as e:
+        printf(e)
         raise RuntimeError(
             '%s %s' %  ('failed to create a macvtap device,',
                             'perhaps you need a latest pyroute2 module'))
     finally:
         ipr.close()
-
 
 def is_netns_existed(ns):
     return ns in netns.listnetns()
