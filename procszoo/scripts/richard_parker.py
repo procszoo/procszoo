@@ -195,8 +195,8 @@ def main():
     except RuntimeError as e:
         printf(e)
         _exit_code = 1
-    except SystemExit:
-        _exit_code = 0
+    except KeyboardInterrupt:
+        _exit_code = 1
     except Exception as e:
         printf(e)
         traceback.print_exc()
@@ -312,11 +312,13 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
 
         if is_netns_existed(self.netns):
             del_netns_by_name(self.netns)
+
         self.default_top_halves_before_exit(*args, **kwargs)
 
     def _top_halves_half_sync(self, *args, **kwargs):
         self.manual_created_ifnames = []
         self.need_up_ifnames = []
+
         if self.netns_enable:
             ifname = self.ifname
             if self.network == 'macvtap':

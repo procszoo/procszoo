@@ -2,7 +2,7 @@ import os
 from pyroute2 import IPRoute
 from subprocess import check_call, CalledProcessError
 
-from dhcp import dhcp_if
+from procszoo.network.dhcp import dhcp_if
 
 __all__ = ['is_ifindex_wireless', 'is_ifname_wireless', 'dhcp_if',
                'is_all_ifindexes_wireless', 'is_all_ifnames_wireless',

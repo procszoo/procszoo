@@ -16,6 +16,7 @@ from procszoo.network.dhcp import *
 
 __all__ = [
     'Pyroute2ModuleUnvailable', 'Pyroute2NetNSUnvailable',
+    'NetworkSettingError', 'InterfaceNotFound',
     'get_all_ifnames', 'get_all_ifindexes', 'get_all_ifnames_and_ifindexes',
     'is_ifindex_wireless', 'is_ifname_wireless',
     'is_all_ifindexes_wireless', 'is_all_ifnames_wireless',
@@ -225,7 +226,6 @@ def create_veth(ifname=None, peer=None):
     ipr.link('add', ifname=ifname, kind='veth', peer=peer)
     ipr.close()
 
-
 def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
     if 'kind' in kwargs:
         if kwargs.get('kind') != 'macvtap':
@@ -265,6 +265,7 @@ def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
                             'perhaps you need a latest pyroute2 module'))
     finally:
         ipr.close()
+
 
 def is_netns_existed(ns):
     return ns in netns.listnetns()
@@ -319,6 +320,7 @@ def add_ifname_to_ns_by_pid(ifname, pid=None, path=None, netns=None):
 def del_netns_by_name(ns):
     netns.remove(ns)
 
+
 def del_if_by_name(ifname):
     ipr = IPRoute()
     ipr.link('remove', ifname=ifname)
@@ -330,6 +332,7 @@ def del_if_by_index(ifindex):
     ipr = IPRoute()
     ipr.link_remove(ifindex)
     ipr.close()
+
 
 def down_if_by_name(ifname):
     ipr = IPRoute()
@@ -354,6 +357,7 @@ def up_if_by_index(ifindex):
     ipr = IPRoute()
     ipr.link('set', index=ifindex, state='up')
     ipr.close()
+
 
 def remove_netns(ns_name):
     netns = NetNS(ns_name)

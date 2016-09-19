@@ -1,5 +1,6 @@
 __all__ = [
-    'Pyroute2ModuleUnvailable', 'Pyroute2NetNSUnvailable'
+    'Pyroute2ModuleUnvailable', 'Pyroute2NetNSUnvailable',
+    'NetworkSettingError', 'InterfaceNotFound',
     ]
 
 
@@ -12,4 +13,7 @@ class Pyroute2NetNSUnvailable(Pyroute2ModuleUnvailable):
 
 
 class NetworkSettingError(Exception):
+    pass
+
+class InterfaceNotFound(NetworkSettingError):
     pass
