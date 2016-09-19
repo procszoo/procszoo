@@ -269,6 +269,7 @@ class SpawnNamespacesConfig(object):
                 bottom_halves_before_sync=None,
                 bottom_halves_half_sync=None,
                 bottom_halves_after_sync=None,
+                bottom_halves_before_main=None,
                 bottom_halves_main=None,
                 bottom_halves_before_exit=None,
                 top_halves_entry_point=None,
@@ -321,7 +322,7 @@ class SpawnNamespacesConfig(object):
             setattr(self, 'parse_conf', parse_conf)
 
         if top_halves_before_fork is None:
-            self.top_halves_before_fork = self.default_null_handler
+            self.top_halves_before_fork = self.default_top_halves_before_fork
         elif not callable(top_halves_before_fork):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -342,14 +343,14 @@ class SpawnNamespacesConfig(object):
             setattr(self, 'top_halves_half_sync', top_halves_half_sync)
 
         if top_halves_after_sync is None:
-            self.top_halves_after_sync = self.default_null_handler
+            self.top_halves_after_sync = self.default_top_halves_after_sync
         elif not callable(top_halves_after_sync):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'top_halves_after_sync', top_halves_after_sync)
 
         if top_halves_before_exit is None:
-            self.top_halves_before_exit = self.default_null_handler
+            self.top_halves_before_exit = self.default_top_halves_before_exit
         elif not callable(top_halves_before_exit):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -374,7 +375,7 @@ class SpawnNamespacesConfig(object):
                         bottom_halves_before_sync)
 
         if bottom_halves_half_sync is None:
-            self.bottom_halves_half_sync = self.default_null_handler
+            self.bottom_halves_half_sync = self.default_bottom_halves_half_sync
         elif not callable(bottom_halves_half_sync):
             raise NamespaceSettingError('handler must be a callable')
         else:
@@ -387,6 +388,15 @@ class SpawnNamespacesConfig(object):
             raise NamespaceSettingError('handler must be a callable')
         else:
             setattr(self, 'bottom_halves_after_sync', bottom_halves_after_sync)
+
+        if bottom_halves_before_main is None:
+            self.bottom_halves_before_main = (
+                self.default_bottom_halves_before_main)
+        elif not callable(bottom_halves_before_main):
+            raise NamespaceSettingError('handler must be a callable')
+        else:
+            setattr(self, 'bottom_halves_before_main',
+                        bottom_halves_before_main)
 
         if bottom_halves_main is None:
             self.bottom_halves_main = (self.default_bottom_halves_main)
@@ -732,6 +742,7 @@ class SpawnNamespacesConfig(object):
             elif self.init_prog is not None:
                 _args = [self.init_prog] + self.nscmd
 
+            self.bottom_halves_before_main(*args, **kwargs)
             if _args:
                 os.execlp(args[0], *args)
             else:
