@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # test_ipc.py
 # IPC Support for Procszoo
 # Copyright (C) 2016 Rayson Zhu <vfreex+procszoo@gmail.com>
@@ -15,7 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals, with_statement
+from future.builtins import str
 
 import json
 import unittest

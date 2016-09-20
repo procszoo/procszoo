@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # jsonrpc.py
 # IPC Support for Procszoo
 # Copyright (C) 2016 Rayson Zhu <vfreex+procszoo@gmail.com>
@@ -17,13 +18,13 @@
 
 # JSON-RPC 2.0 Specification: http://www.jsonrpc.org/specification
 
-from __future__ import unicode_literals, absolute_import
+from __future__ import absolute_import, unicode_literals
+from future.builtins import str, int
 
 import json
 import logging
 
-from future.builtins import str, int
-from future.utils import text_to_native_str
+
 
 from procszoo.ipc.common import AbstractMessage
 
@@ -73,7 +74,7 @@ class AbstractJSONRPCObject(AbstractMessage, object):
 
     def to_json(self):
         # type: () -> str
-        return json.dumps(self.to_dict())
+        return str(json.dumps(self.to_dict()))
 
 
     def to_bytes(self):
@@ -121,7 +122,7 @@ class JSONRPCRequest(AbstractJSONRPCObject, object):
         return self._is_notification
 
     def __repr__(self):
-        return "<{}.{}:{}>".format(__name__, "JSONRPCRequestObject", self.__dict__)
+        return "<{0} {1}>".format(self.__class__.__name__, self.__dict__)
 
     def to_dict(self):
         json_dict = {"jsonrpc": self.jsonrpc, "method": self.method}

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # common.py
 # IPC Support for Procszoo
 # Copyright (C) 2016 Rayson Zhu <vfreex+procszoo@gmail.com>
@@ -15,6 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import, unicode_literals
+
+
 class AbstractMessage(object):
     def to_bytes(self):
         # type: () -> bytes
@@ -26,7 +30,7 @@ class AbstractMessage(object):
         raise NotImplementedError()
 
     def __repr__(self):
-        return "<{} {}>".format(self.__class__.__name__, self.__dict__)
+        return "<{0} {1}>".format(self.__class__.__name__, self.__dict__)
 
 
 class AbstractMessageHeader(AbstractMessage, object):

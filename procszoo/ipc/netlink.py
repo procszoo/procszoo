@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # netlink.py
 # IPC Support for Procszoo
 # Copyright (C) 2016 Rayson Zhu <vfreex+procszoo@gmail.com>
@@ -15,7 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import unicode_literals, absolute_import
+from __future__ import absolute_import, unicode_literals
+from future.utils import text_to_native_str
 
 import struct
 
@@ -54,7 +56,12 @@ class NetlinkMessageHeader(AbstractMessageHeader, object):
         return NetlinkMessageHeader.FORMAT
 
     def to_bytes(self):
-        return struct.pack(self.FORMAT, self.nlmsg_len, self.nlmsg_type, self.nlmsg_flags,
+        # TODO: This is a WORKAROUND!
+        # Before Python 2.7.7, struct.pack() only accepts native str.
+        # Uses of unicode will cause TypeError: Struct() argument 1 must be string, not unicode.
+        # This have been fixed by the Python community:
+        # https://hg.python.org/cpython/raw-file/f89216059edf/Misc/NEWS
+        return struct.pack(text_to_native_str(self.FORMAT), self.nlmsg_len, self.nlmsg_type, self.nlmsg_flags,
                            self.nlmsg_seq, self.nlmsg_pid)
 
     @classmethod

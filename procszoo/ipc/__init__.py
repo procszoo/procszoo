@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # __init__.py
 # IPC Support for Procszoo
 # Copyright (C) 2016 Rayson Zhu <vfreex+procszoo@gmail.com>
@@ -15,7 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import absolute_import, unicode_literals, print_function
+from __future__ import absolute_import, unicode_literals
+from future.builtins import str, bytes
 
 import inspect
 import logging
@@ -128,8 +130,8 @@ class RPCPeer(object):
                 LOGGER.debug("RPC server: waiting for RPC request...")
                 data, src_addr = self._socket.recvfrom(NetlinkMessageHeader.MESSAGE_SIZE_LIMIT)
                 remote_nl_pid = src_addr[0]
-                LOGGER.debug("RPC server: Message received from %s. length: %s, content: %s", remote_nl_pid, len(data),
-                             data)
+                # LOGGER.debug("RPC server: Message received from %s. length: %s, content: %s", remote_nl_pid, len(data),
+                #              ":".join("{:02x}".format(ord(c)) for c in bytes(data)))
                 netlink_message = NetlinkMessage.from_bytes(data)
                 LOGGER.debug("RPC server: Netlink message unpacked: %s", netlink_message)
                 if netlink_message.header.nlmsg_pid == 0 or netlink_message.header.nlmsg_pid != remote_nl_pid:

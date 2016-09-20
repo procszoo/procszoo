@@ -73,7 +73,7 @@ Third-party dependencies:
 ```
 
 Where
-- `__init__.py` defines the JSON-RPC server/client `RPCPeer`. 
+- `__init__.py` defines the JSON-RPC server/client: `RPCPeer`. 
 - `common.py` defines the base class for message headers and messages.
 - `netlink.py` defines `NetlinkMessageHeader` and `NetlinkMessage`,
 which are abstraction for Netlink header and whole netlink meesages.
@@ -101,7 +101,7 @@ procslink_header = ProcslinkMessageHeader(
     payload_type=ProcslinkMessageHeader.PAYLOAD_TYPE_JSONRPC2_RESPONSE)
 procslink_message = ProcslinkMessage(procslink_header,
     jsonrpc_response.to_bytes()))
-netlink_header = NetlinkMessageHeader(nlmsg_pid=self.nl_pid)
+netlink_header = NetlinkMessageHeader(nlmsg_pid=sender_nl_pid)
 netlink_message = NetlinkMessage(netlink_header,
     procslink_message.to_bytes())
 data = netlink_message.to_bytes()
