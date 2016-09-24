@@ -281,6 +281,7 @@ def add_ifindex_to_ns(ifindex, ns):
     finally:
         ipr.close()
 
+
 def add_ifname_to_ns(ifname, ns):
     '''add a interface to the ns net namespace'''
     ipr = IPRoute()
@@ -292,6 +293,7 @@ def add_ifname_to_ns(ifname, ns):
         raise RuntimeError
     finally:
         ipr.close()
+
 
 def add_ifname_to_ns_by_pid(ifname, pid=None, path=None, netns=None):
     if pid is None:
