@@ -36,12 +36,12 @@ __all__ = [
 try:
     import pyroute2
 except ImportError:
-    raise Pyroute2ModuleUnvailable
+    raise Pyroute2ModuleUnvailable('pyroute2 module unavailable')
 
 try:
     from pyroute2 import netns
 except AttributeError:
-    raise Pyroute2NetNSUnvailable
+    raise Pyroute2NetNSUnvailable('pyroute2 netns function unavailable')
 
 from pyroute2 import IPRoute
 from pyroute2 import netns

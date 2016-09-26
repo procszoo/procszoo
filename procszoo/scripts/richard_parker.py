@@ -136,13 +136,9 @@ def main():
     if args.network or args.nameservers or args.hostname:
         try:
             from procszoo.network import cli
-        except Pyroute2ModuleUnvailable as e:
+        except (SystemExit, KeyboardInterrupt) as e:
             printf(e)
-            raise NamespaceSettingError('pyroute2 module unavailable')
-        except Pyroute2NetNSUnvailableas as e:
-            printf(e)
-            raise NamespaceSettingError(
-        '''pyroute2 module doesn't support netns''')
+            sys.exit(1)
         extra = cli.build_extra(args)
     else:
         extra = None

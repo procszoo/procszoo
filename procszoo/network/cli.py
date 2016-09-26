@@ -8,9 +8,11 @@ import tempfile
 import random
 from procszoo.c_functions import *
 from procszoo.utils import *
+from procszoo.network.exceptions import *
 try:
     from procszoo.network import *
-except () as e:
+except (Pyroute2ModuleUnvailable, Pyroute2NetNSUnvailable) as e:
+    printf(e)
     raise SystemExit('cannot support network function')
 
 __all__ = ['build_extra']
