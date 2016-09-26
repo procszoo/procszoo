@@ -30,12 +30,16 @@ def dhcp_if(ifname, ipv4=True, ipv6=None, port=68,
         timeout = int(timeout)
         _cmd.append('--timeout')
         _cmd.append('%d' % timeout)
-    if leases:
-        _cmd.append('-lf')
-        _cmd.append(leases)
-    if pid:
-        _cmd.append('-pf')
-        _cmd.append(pid)
+
+    if leases is None:
+        leases = '/var/run/dhcpclient-%s.leases' % ifname
+    _cmd.append('-lf')
+    _cmd.append(leases)
+
+    if pid is None:
+        pid = '/var/run/dhclient-%s.pid' % ifname
+    _cmd.append('-pf')
+    _cmd.append(pid)
 
     _cmd.append(ifname)
     try:

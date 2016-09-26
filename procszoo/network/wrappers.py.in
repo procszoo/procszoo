@@ -60,5 +60,5 @@ def add_ifname_to_bridge(ifname, bridge):
     try:
         check_call(_cmd, stdout=devnull_fd, stderr=devnull_fd)
     except CalledProcessError:
-        raise RuntimeError('failed to add port %s to bridge %s' %
+        raise NetworkSettingError('failed to add port %s to bridge %s' %
                                (ifname, bridge))

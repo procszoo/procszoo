@@ -17,6 +17,7 @@ from procszoo.network.dhcp import *
 __all__ = [
     'Pyroute2ModuleUnvailable', 'Pyroute2NetNSUnvailable',
     'NetworkSettingError', 'InterfaceNotFound',
+    'UnkonwnInterfaceFound', 'DHCPFailed',
     'get_all_ifnames', 'get_all_ifindexes', 'get_all_ifnames_and_ifindexes',
     'is_ifindex_wireless', 'is_ifname_wireless',
     'is_all_ifindexes_wireless', 'is_all_ifnames_wireless',
@@ -51,6 +52,7 @@ except ImportError:
     from pyroute2.netlink import NetlinkError
 
 PYROUTE2_IW_PACKAGE_AVAILABLE = True
+
 try:
     IW()
 except NetlinkError:
@@ -84,17 +86,18 @@ def get_all_ifnames_and_ifindexes():
 
 def get_up_ifindexes():
     ipr = IPRoute()
-    ret = ipr.link_lookup(operstate='UP')
+    links = ipr.get_links()
+    index_list = [l.get('index') for l in links
+                     if (l.get('flags') & 1) == 1]
     ipr.close()
-    return ret
+    return index_list
 
 
 def get_up_ifnames():
     ipr = IPRoute()
-    idx_list = ipr.link_lookup(operstate='UP')
-    if not idx_list: return []
-    links = ipr.get_links(*idx_list)
-    name_list = [l.get_attr('IFLA_IFNAME') for l in links]
+    links = ipr.get_links()
+    name_list = [l.get_attr('IFLA_IFNAME') for l in links
+                     if (l.get('flags') & 1) == 1]
     ipr.close()
     return name_list
 
@@ -157,7 +160,7 @@ if PYROUTE2_IW_PACKAGE_AVAILABLE:
 
         unkown_ifnames = [n for n in ifnames if n not in links.keys()]
         if unkown_ifnames:
-            raise RuntimeError
+            raise UnkonwnInterfaceFound(unkown_ifnames)
 
         for n in ifnames:
             idx = links[n]
@@ -223,13 +226,18 @@ def create_veth(ifname=None, peer=None):
     if peer is None:
         peer = 'veth1'
     ipr = IPRoute()
-    ipr.link('add', ifname=ifname, kind='veth', peer=peer)
-    ipr.close()
+    try:
+        ipr.link('add', ifname=ifname, kind='veth', peer=peer)
+    except Exception as e:
+        printf(e)
+        raise NetworkSettingError('failed to create veth pairs')
+    finally:
+        ipr.close()
 
 def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
     if 'kind' in kwargs:
         if kwargs.get('kind') != 'macvtap':
-            raise NetworkSettingError
+            raise NetworkSettingError('network need be macvtap')
     else:
         kwargs['kind'] = 'mactap'
 
@@ -243,7 +251,7 @@ def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
         ifs = [idx for idx in get_all_oifindexes_of_default_route()
                    if not is_ifindex_wireless(idx)]
         if not ifs:
-            raise SystemExit(
+            raise NetworkSettingError(
                 'no default route for us to determine interface')
         else:
             index = ifs[0]
@@ -253,15 +261,15 @@ def create_macvtap(ifname=None, link=None, mode=None, **kwargs):
         except ValueError:
             index = ipr.link_lookup(ifname=link)[0]
         except Exception:
-            raise NamespaceSettingError(
+            raise NetworkSettingError(
                 'failed to get the index of %s' % self.interface)
     try:
         ipr.link('add', ifname=ifname, kind='macvtap',
                      link=index, macvtap_mode=mode)
     except Exception as e:
         printf(e)
-        raise RuntimeError(
-            '%s %s' %  ('failed to create a macvtap device,',
+        raise NetworkSettingError(
+            '%s %s' %  ('failed to create a macvtap device',
                             'perhaps you need a latest pyroute2 module'))
     finally:
         ipr.close()
@@ -275,9 +283,11 @@ def add_ifindex_to_ns(ifindex, ns):
     ipr = IPRoute()
     try:
         ipr.link('set', index=ifindex, net_ns_fd=ns)
+    except NetlinkError:
+        raise NetworkSettingError('failed to add %d to netns' % ifindex)
     except Exception as e:
         printf(e)
-        raise RuntimeError
+        raise NetworkSettingError('failed to add %d to netns' % ifindex)
     finally:
         ipr.close()
 
@@ -288,9 +298,11 @@ def add_ifname_to_ns(ifname, ns):
     ifindex = ipr.link_lookup(ifname=ifname)[0]
     try:
         ipr.link('set', index=ifindex, net_ns_fd=ns)
+    except NetlinkError:
+        raise NetworkSettingError('failed to add %s to netns' % ifname)
     except Exception as e:
         printf(e)
-        raise RuntimeError
+        raise NetworkSettingError('failed to add %s to netns' % ifname)
     finally:
         ipr.close()
 
@@ -301,7 +313,7 @@ def add_ifname_to_ns_by_pid(ifname, pid=None, path=None, netns=None):
     try:
         pid = int(pid)
     except ValueError:
-        raise NamespaceSettingError()
+        raise NetworkSettingError('unavailable pid')
     netns_dir = '/var/run/netns'
     if netns is None:
         netns = 'net%d' % pid
@@ -310,7 +322,7 @@ def add_ifname_to_ns_by_pid(ifname, pid=None, path=None, netns=None):
     if not os.path.exists(netns_dir):
         os.makedirs(netns_dir)
     if not os.path.isdir(netns_dir):
-        raise RuntimeError('%s is not a dir' % netns_dir)
+        raise NetworkSettingError('%s is not a dir' % netns_dir)
     if not os.path.exists(target):
         open(target, 'w+').close()
 

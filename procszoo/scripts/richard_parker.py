@@ -4,8 +4,7 @@ from argparse import ArgumentParser, REMAINDER
 import traceback
 from procszoo.c_functions import *
 from procszoo.utils import *
-from procszoo.network import *
-from procszoo.network import cli
+
 
 def get_options():
     propagation_types = get_available_propagations()
@@ -134,7 +133,19 @@ def main():
     if args.show_available_c_functions:
         show_available_c_functions_and_quit()
 
-    extra = cli.build_extra(args)
+    if args.network or args.nameservers or args.hostname:
+        try:
+            from procszoo.network import cli
+        except Pyroute2ModuleUnvailable as e:
+            printf(e)
+            raise NamespaceSettingError('pyroute2 module unavailable')
+        except Pyroute2NetNSUnvailableas as e:
+            printf(e)
+            raise NamespaceSettingError(
+        '''pyroute2 module doesn't support netns''')
+        extra = cli.build_extra(args)
+    else:
+        extra = None
 
     _exit_code = 0
     try:

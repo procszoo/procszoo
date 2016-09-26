@@ -8,23 +8,24 @@ import tempfile
 import random
 from procszoo.c_functions import *
 from procszoo.utils import *
-from procszoo.network import *
+try:
+    from procszoo.network import *
+except () as e:
+    raise SystemExit('cannot support network function')
 
 __all__ = ['build_extra']
 
 
 def build_extra(args):
-    if args.network or args.hostname or args.nameservers:
-        extra = {}
-        extra['trigger_key'] = 'richard+network'
-        extra['dhcp'] = args.dhcp
-        extra['interface'] = args.interface
-        extra['network'] = args.network
-        extra['nameservers'] = args.nameservers
-        extra['hostname'] = args.hostname
-        extra['bridge'] = args.bridge
-        return extra
-    return None
+    extra = {}
+    extra['trigger_key'] = 'richard+network'
+    extra['dhcp'] = args.dhcp
+    extra['interface'] = args.interface
+    extra['network'] = args.network
+    extra['nameservers'] = args.nameservers
+    extra['hostname'] = args.hostname
+    extra['bridge'] = args.bridge
+    return extra
 
 
 def _richard_parker_and_network(**kwargs):
@@ -102,7 +103,7 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
             if _if not in _ifnames:
                 return _if
 
-        raise SystemExit()
+        raise SystemExit('failed to get a interface')
 
     def need_super_privilege(self):
         return os.geteuid() != 0
@@ -150,16 +151,25 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
                         self.need_up_ifnames.append(self.interface)
                         up_if_by_name(self.interface)
                     if self.dhcp:
-                        dhcp_if(self.interface)
+                        try:
+                            dhcp_if(self.interface)
+                        except DHCPFailed as e:
+                            printf(e)
+                            raise NamespaceSettingError
                 try:
                     create_macvtap(ifname=ifname, link=self.interface)
-                except SystemExit:
+                except NetworkSettingError:
                     raise NamespaceSettingError(
                         'cannot determine a interface for creating %s devices'
                         % self.network)
 
             elif self.network == 'veth':
-                create_veth(ifname, self.ifnames[1])
+                try:
+                    create_veth(ifname, self.ifnames[1])
+                except NetworkSettingError as e:
+                    printf(e)
+                    raise NamespaceSettingError
+
                 self.manual_created_ifnames.append(ifname)
                 self.need_up_ifnames.append(ifname)
 
@@ -186,14 +196,22 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
                     for _if in self.need_up_ifnames:
                         up_if_by_name(_if)
                     if self.bridge in self.need_up_ifnames and self.dhcp:
-                        dhcp_if(self.bridge)
+                        try:
+                            dhcp_if(self.bridge)
+                        except DHCPFailed as e:
+                            printf(e)
+                            raise NamespaceSettingError
                 else:
                     up_if_by_name(ifname)
 
             self.netns = self.netns_fmt % self.bottom_halves_child_pid
-            add_ifname_to_ns_by_pid(
-                ifname=self.ifname_to_ns, netns=self.netns,
-                pid=self.bottom_halves_child_pid)
+            try:
+                add_ifname_to_ns_by_pid(
+                    ifname=self.ifname_to_ns, netns=self.netns,
+                    pid=self.bottom_halves_child_pid)
+            except NetworkSettingError:
+                raise SystemExit('failed to add %s to netns %s' %
+                                     (self.ifname_to_ns, self.netns))
 
         self.default_top_halves_half_sync(*args, **kwargs)
 
@@ -202,7 +220,7 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
         if self.netns_enable:
             ifname = self.ifname_to_ns
             if ifname not in get_all_ifnames():
-                raise RuntimeError('%s interfaces not existed' % ifname)
+                raise SystemExit('%s interfaces not existed' % ifname)
             up_if_by_name(ifname)
 
             if self.dhcp:
@@ -210,8 +228,7 @@ class SpawnNSAndNetwork(SpawnNamespacesConfig):
                     dhcp_if(ifname, leases=self._leases,
                                 pid=self._dhclient_pid_file)
                 except DHCPFailed as e:
-                    printf(e)
-                    raise SystemExit()
+                    raise SystemExit('dhcp failed')
                 if self.nameservers:
                     nameservers = self.nameservers
                 else:
