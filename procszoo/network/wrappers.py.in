@@ -5,8 +5,7 @@ from subprocess import check_call, CalledProcessError
 from procszoo.network.dhcp import dhcp_if
 
 __all__ = ['is_ifindex_wireless', 'is_ifname_wireless', 'dhcp_if',
-               'is_all_ifindexes_wireless', 'is_all_ifnames_wireless',
-               'add_ifname_to_bridge',]
+               'is_all_ifindexes_wireless', 'is_all_ifnames_wireless',]
 
 devnull = "/dev/null"
 if hasattr(os, "devnull"):
@@ -54,11 +53,3 @@ def is_all_ifnames_wireless(ifnames):
     for ifname in ifnames:
         ret[ifname] = is_ifname_wireless(ifname)
     return ret
-
-def add_ifname_to_bridge(ifname, bridge):
-    _cmd = ['@BRCTL@', 'addif', bridge, ifname]
-    try:
-        check_call(_cmd, stdout=devnull_fd, stderr=devnull_fd)
-    except CalledProcessError:
-        raise NetworkSettingError('failed to add port %s to bridge %s' %
-                               (ifname, bridge))

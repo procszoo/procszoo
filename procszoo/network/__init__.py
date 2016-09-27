@@ -174,15 +174,15 @@ if PYROUTE2_IW_PACKAGE_AVAILABLE:
 
         return ret
 
-
-    def add_ifname_to_bridge(ifname, bridge):
-        ipr = IPRoute()
-        ipr.link('set', index=ipr.link_lookup(ifname=ifname)[0],
-                    master=ipr.link_lookup(ifname=bridge)[0])
-        ipr.close()
-
 else:
     from procszoo.network.wrappers import *
+
+
+def add_ifname_to_bridge(ifname, bridge):
+    ipr = IPRoute()
+    ipr.link('set', index=ipr.link_lookup(ifname=ifname)[0],
+                master=ipr.link_lookup(ifname=bridge)[0])
+    ipr.close()
 
 
 def get_all_oifindexes_of_default_route(wifi=None):
