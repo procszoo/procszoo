@@ -2,6 +2,5 @@ include configure.ac Makefile README.first *.md *.txt VERSION *.spec
 recursive-include procszoo *.in *.h
 recursive-include procszoo/scripts
 exclude procszoo/c_functions/macros.py procszoo/version.py \
-        procszoo/network/wrappers.py procszoo/network/dhcp.py \
-        .gitignore
+        procszoo/network/dhcp.py .gitignore
 

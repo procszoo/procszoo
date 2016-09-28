@@ -5,6 +5,7 @@ To understand following abbreviated worlds please reference rtnetlink(7)
 '''
 import os
 import sys
+import errno
 import logging
 logging.basicConfig(level=logging.FATAL)
 
@@ -51,13 +52,6 @@ try:
 except ImportError:
     from pyroute2.netlink import NetlinkError
 
-PYROUTE2_IW_PACKAGE_AVAILABLE = True
-
-try:
-    IW()
-except NetlinkError:
-    PYROUTE2_IW_PACKAGE_AVAILABLE = False
-
 
 def get_all_ifnames():
     '''get all interface names'''
@@ -102,80 +96,103 @@ def get_up_ifnames():
     return name_list
 
 
-if PYROUTE2_IW_PACKAGE_AVAILABLE:
-    def is_ifindex_wireless(ifindex):
-        '''check whether a interface is wireless or not by the its index'''
-        retval = True
+def is_ifindex_wireless(ifindex):
+    '''check whether a interface is wireless or not by the its index'''
+    retval = True
+
+    try:
         iw = IW()
-        try:
-            iw.get_interface_by_ifindex(ifindex)
-        except NetlinkError:
-            retval = False
-        finally:
-            iw.close()
-        return retval
+    except NetlinkError as e:
+        if e.args[0] == errno.ENOENT:
+            return False
 
-
-    def is_ifname_wireless(ifname):
-        '''check whether a interface is wireless or not by its name'''
-        retval = True
-        ipr = IPRoute()
-        iw = IW()
-        index = ipr.link_lookup(ifname=ifname)[0]
-        try:
-            iw.get_interface_by_ifindex(index)
-        except NetlinkError:
-            retval = False
-        finally:
-            iw.close()
-            ipr.close()
-        return retval
-
-
-    def is_all_ifindexes_wireless(ifindexes):
-        iw = IW()
-        ret = {}
-
-        for idx in ifindexes:
-            try:
-                iw.get_interface_by_ifindex(idx)
-            except NetlinkError:
-                ret[idx] = False
-            else:
-                ret[idx] = True
-
+    try:
+        iw.get_interface_by_ifindex(ifindex)
+    except NetlinkError:
+        retval = False
+    finally:
         iw.close()
-        return ret
+    return retval
 
 
-    def is_all_ifnames_wireless(ifnames):
-        ipr = IPRoute()
+
+def is_ifname_wireless(ifname):
+    '''check whether a interface is wireless or not by its name'''
+    retval = True
+    ipr = IPRoute()
+
+    try:
         iw = IW()
+    except NetlinkError as e:
+        if e.args[0] == errno.ENOENT:
+            return False
+    finally:
+        ipr.close()
 
-        ret = {}
-        links = {}
+    index = ipr.link_lookup(ifname=ifname)[0]
+    try:
+        iw.get_interface_by_ifindex(index)
+    except NetlinkError:
+        retval = False
+    finally:
+        iw.close()
+        ipr.close()
+    return retval
 
-        for l in ipr.get_links():
-            links[l.get_attr('IFLA_IFNAME')] = l.get('index')
 
-        unkown_ifnames = [n for n in ifnames if n not in links.keys()]
-        if unkown_ifnames:
-            raise UnkonwnInterfaceFound(unkown_ifnames)
+def is_all_ifindexes_wireless(ifindexes):
+    try:
+        iw = IW()
+    except NetlinkError as e:
+        if e.args[0] == errno.ENOENT:
+            return False
 
-        for n in ifnames:
-            idx = links[n]
+    ret = {}
 
-            try:
-                iw.get_interface_by_ifindex(idx)
-            except NetlinkError:
-                ret[n] = False
-            else:
-                ret[n] = True
+    for idx in ifindexes:
+        try:
+            iw.get_interface_by_ifindex(idx)
+        except NetlinkError:
+            ret[idx] = False
+        else:
+            ret[idx] = True
 
-        return ret
+    iw.close()
+    return ret
 
-else:
-    from procszoo.network.wrappers import *
+
+def is_all_ifnames_wireless(ifnames):
+    ipr = IPRoute()
+
+    try:
+        iw = IW()
+    except NetlinkError as e:
+        if e.args[0] == errno.ENOENT:
+            return False
+    finally:
+        ipr.close()
+
+    ret = {}
+    links = {}
+
+    for l in ipr.get_links():
+        links[l.get_attr('IFLA_IFNAME')] = l.get('index')
+
+    unkown_ifnames = [n for n in ifnames if n not in links.keys()]
+    if unkown_ifnames:
+        raise UnkonwnInterfaceFound(unkown_ifnames)
+
+    for n in ifnames:
+        idx = links[n]
+
+        try:
+            iw.get_interface_by_ifindex(idx)
+        except NetlinkError:
+            ret[n] = False
+        else:
+            ret[n] = True
+
+    return ret
 
 
 def add_ifname_to_bridge(ifname, bridge):
