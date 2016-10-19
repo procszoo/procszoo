@@ -1,12 +1,17 @@
 import os
+
+if os.uname()[0] != "Linux":
+    raise ImportError("only support Linux platform")
+
 import sys
 import resource
 import re
 from ctypes import (cdll, c_int, c_long, c_char_p, c_size_t, string_at,
-                        create_string_buffer, POINTER, c_void_p, CFUNCTYPE,
-             pythonapi)
+                    create_string_buffer, POINTER, c_void_p, CFUNCTYPE,
+                    pythonapi)
 import pwd
 import grp
+import errno
 
 try:
     from functools import reduce
@@ -27,9 +32,6 @@ except ImportError:
     printf('seems you do not install/build procszoo completely')
     raise SystemExit()
 from procszoo.scripts import my_init
-
-if os.uname()[0] != "Linux":
-    raise ImportError("only support Linux platform")
 
 __version__ = PROCSZOO_VERSION
 __all__ = [
@@ -1002,7 +1004,7 @@ class Workbench(object):
                 res = c_func(*tmp_args)
                 c_int_errno = c_int.in_dll(pythonapi, "errno")
                 if func_obj.failed(res):
-                    if c_int_errno.value == EPERM:
+                    if c_int_errno.value == errno.EPERM:
                         raise NamespaceRequireSuperuserPrivilege()
                     else:
                         raise CFunctionCallFailed(os.strerror(c_int_errno.value))
@@ -1146,7 +1148,7 @@ class Workbench(object):
                     res = unshare(c_int(val))
                     _errno_c_int = c_int.in_dll(pythonapi, "errno")
                     if res == -1:
-                        if _errno_c_int.value != EINVAL:
+                        if _errno_c_int.value != errno.EINVAL:
                             keys.append(ns)
                     else:
                         keys.append(ns)

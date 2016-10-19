@@ -25,22 +25,6 @@ if test "${NR_SETNS_VAL:-}"x != x; then
 AC_MSG_RESULT([$NR_SETNS_VAL])
 fi
 
-AC_SUBST(ERRNO_EINVAL_VAL)
-AC_MSG_CHECKING(['errno EINVAL' value])
-AC_COMPUTE_INT([ERRNO_EINVAL_VAL], [EINVAL], [[#include <errno.h>]],
-  AC_MSG_WARN([errno.h: could not determine 'EINVAL' value]))
-if test "${ERRNO_EINVAL_VAL:-}"x != x; then
-AC_MSG_RESULT([$ERRNO_EINVAL_VAL])
-fi
-
-AC_SUBST(ERRNO_EPERM_VAL)
-AC_MSG_CHECKING(['errno EPERM' value])
-AC_COMPUTE_INT([ERRNO_EPERM_VAL], [EPERM], [[#include <errno.h>]],
-  AC_MSG_WARN([errno.h: could not determine 'EPERM' value]))
-if test "${ERRNO_EPERM_VAL:-}"x != x; then
-AC_MSG_RESULT([$ERRNO_EPERM_VAL])
-fi
-
 AC_SUBST(PROCSZOO_VERSION_VAL, PROCSZOO_VERSION)
 
 AC_PATH_PROG(DHCLIENT, dhclient)
